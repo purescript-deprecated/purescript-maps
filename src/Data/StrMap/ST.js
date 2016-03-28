@@ -3,6 +3,8 @@
 
 // module Data.StrMap.ST
 
+function safeKey(x) { return "$" + x; }
+
 exports["new"] = function () {
   return {};
 };
@@ -12,7 +14,7 @@ exports.peekImpl = function (just) {
     return function (m) {
       return function (k) {
         return function () {
-          return {}.hasOwnProperty.call(m, k) ? just(m[k]) : nothing;
+          return m.hasOwnProperty(safeKey(k)) ? just(m[safeKey(k)]) : nothing;
         };
       };
     };
@@ -23,7 +25,7 @@ exports.poke = function (m) {
   return function (k) {
     return function (v) {
       return function () {
-        m[k] = v;
+        m[safeKey(k)] = v;
         return m;
       };
     };
@@ -33,7 +35,7 @@ exports.poke = function (m) {
 exports["delete"] = function (m) {
   return function (k) {
     return function () {
-      delete m[k];
+      delete m[safeKey(k)];
       return m;
     };
   };

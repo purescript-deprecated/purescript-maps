@@ -3,6 +3,9 @@
 
 // module Data.StrMap
 
+function safeKey(x) { return "$" + x; }
+function unsafeKey(x) { return x.slice(1); }
+
 exports._copy = function (m) {
   var r = {};
   for (var k in m) {
@@ -49,12 +52,12 @@ exports._foldM = function (bind) {
       return function (m) {
         function g(k) {
           return function (z) {
-            return f(z)(k)(m[k]);
+            return f(z)(k)(m[safeKey(k)]);
           };
         }
         for (var k in m) {
           if (m.hasOwnProperty(k)) {
-            mz = bind(mz)(g(k));
+            mz = bind(mz)(g(unsafeKey(k)));
           }
         }
         return mz;
@@ -80,7 +83,7 @@ exports._foldSCStrMap = function (m, z, f, fromMaybe) {
 exports.all = function (f) {
   return function (m) {
     for (var k in m) {
-      if (m.hasOwnProperty(k) && !f(k)(m[k])) return false;
+      if (m.hasOwnProperty(k) && !f(unsafeKey(k))(m[k])) return false;
     }
     return true;
   };
@@ -98,19 +101,19 @@ exports.size = function (m) {
 
 // jshint maxparams: 4
 exports._lookup = function (no, yes, k, m) {
-  return k in m ? yes(m[k]) : no;
+  return m.hasOwnProperty(safeKey(k)) ? yes(m[safeKey(k)]) : no;
 };
 
 // jshint maxparams: 2
 exports._unsafeDeleteStrMap = function (m, k) {
-  delete m[k];
+  delete m[safeKey(k)];
   return m;
 };
 
 // jshint maxparams: 4
 exports._lookupST = function (no, yes, k, m) {
   return function () {
-    return k in m ? yes(m[k]) : no;
+    return m.hasOwnProperty(safeKey(k)) ? yes(m[safeKey(k)]) : no;
   };
 };
 
@@ -119,7 +122,7 @@ function _collect(f) {
     var r = [];
     for (var k in m) {
       if (m.hasOwnProperty(k)) {
-        r.push(f(k)(m[k]));
+        r.push(f(unsafeKey(k))(m[k]));
       }
     }
     return r;
@@ -128,6 +131,6 @@ function _collect(f) {
 
 exports._collect = _collect;
 
-exports.keys = Object.keys || _collect(function (k) {
+exports.keys = _collect(function (k) {
   return function () { return k; };
 });
