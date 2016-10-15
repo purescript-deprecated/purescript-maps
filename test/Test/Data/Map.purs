@@ -10,12 +10,11 @@ import Control.Monad.Eff.Random (RANDOM)
 
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
-import Data.List (List(..), groupBy, length, nubBy, sortBy, singleton)
+import Data.List (List, groupBy, length, nubBy, sortBy, singleton)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..), fst)
-
-import Partial.Unsafe (unsafePartial)
 
 import Test.QuickCheck ((<?>), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -208,7 +207,6 @@ mapTests = do
   log "fromListWith (<>) = fromList . collapse with (<>) . group on fst"
   quickCheck $ \arr ->
     let combine (Tuple s a) (Tuple t b) = (Tuple s $ b <> a)
-        foldl1 g = unsafePartial \(Cons x xs) -> foldl g x xs
         f = M.fromList <<< map (foldl1 combine) <<<
             groupBy ((==) `on` fst) <<< sortBy (compare `on` fst) in
     M.fromListWith (<>) arr == f (arr :: List (Tuple String String)) <?> show arr
