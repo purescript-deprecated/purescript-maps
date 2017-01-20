@@ -7,6 +7,7 @@ import Control.Monad.Eff.Console (log, CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
 
+import Data.Array as A
 import Data.Foldable (foldl)
 import Data.Function (on)
 import Data.List (List(..), groupBy, sortBy, singleton, fromFoldable, zipWith)
@@ -21,9 +22,16 @@ import Test.QuickCheck ((<?>), quickCheck, quickCheck', (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype TestStrMap v = TestStrMap (M.StrMap v)
+newtype TestIntMap   = TestIntMap (M.StrMap Int)
+
+derive newtype instance showTestIntMap :: Show TestIntMap
+derive newtype instance eqTestIntMap   :: Eq   TestIntMap
 
 instance arbTestStrMap :: (Arbitrary v) => Arbitrary (TestStrMap v) where
   arbitrary = TestStrMap <<< (M.fromFoldable :: List (Tuple String v) -> M.StrMap v) <$> arbitrary
+
+instance arbTestIntMap :: Arbitrary TestIntMap where
+  arbitrary = TestIntMap <<< (M.fromFoldable :: List (Tuple String Int) -> M.StrMap Int) <$> arbitrary
 
 data Instruction k v = Insert k v | Delete k
 
@@ -96,6 +104,18 @@ strMapTests = do
 
   log "Singleton to list"
   quickCheck $ \k v -> M.toList (M.singleton k v :: M.StrMap Int) == singleton (Tuple k v)
+
+  log "filterKey gives submap"
+  quickCheck $ \(TestIntMap s) p -> M.isSubmap (M.filterKey   p s) s
+
+  log "filterKey keeps those keys for which predicate is true"
+  quickCheck $ \(TestIntMap s) p -> A.all p (M.keys (M.filterKey p s))
+
+  log "filterValue gives submap"
+  quickCheck $ \(TestIntMap s) p -> M.isSubmap (M.filterValue p s) s
+
+  log "filterValue keeps those values for which predicate is true"
+  quickCheck $ \(TestIntMap s) p -> A.all p (M.values (M.filterValue p s))
 
   log "fromFoldable [] = empty"
   quickCheck (M.fromFoldable [] == (M.empty :: M.StrMap Unit)
