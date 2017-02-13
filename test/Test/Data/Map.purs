@@ -11,7 +11,6 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -29,23 +28,8 @@ data SmallKey = A | B | C | D | E | F | G | H | I | J
 derive instance genericSmallKey :: Generic SmallKey _
 instance showSmallKey :: Show SmallKey where
   show = genericShow
-instance eqSmallKey :: Eq SmallKey where
-  eq = genericEq
-
-smallKeyToInt :: SmallKey -> Int
-smallKeyToInt A = 0
-smallKeyToInt B = 1
-smallKeyToInt C = 2
-smallKeyToInt D = 3
-smallKeyToInt E = 4
-smallKeyToInt F = 5
-smallKeyToInt G = 6
-smallKeyToInt H = 7
-smallKeyToInt I = 8
-smallKeyToInt J = 9
-
-instance ordSmallKey :: Ord SmallKey where
-  compare = compare `on` smallKeyToInt
+derive instance eqSmallKey :: Eq SmallKey
+derive instance ordSmallKey :: Ord SmallKey
 
 instance arbSmallKey :: Arbitrary SmallKey where
   arbitrary = do
