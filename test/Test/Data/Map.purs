@@ -10,6 +10,9 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Eq (genericEq)
+import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..), fst)
@@ -23,31 +26,11 @@ instance arbTestMap :: (Eq k, Ord k, Arbitrary k, Arbitrary v) => Arbitrary (Tes
   arbitrary = TestMap <<< (M.fromFoldable :: List (Tuple k v) -> M.Map k v) <$> arbitrary
 
 data SmallKey = A | B | C | D | E | F | G | H | I | J
-
+derive instance genericSmallKey :: Generic SmallKey _
 instance showSmallKey :: Show SmallKey where
-  show A = "A"
-  show B = "B"
-  show C = "C"
-  show D = "D"
-  show E = "E"
-  show F = "F"
-  show G = "G"
-  show H = "H"
-  show I = "I"
-  show J = "J"
-
+  show = genericShow
 instance eqSmallKey :: Eq SmallKey where
-  eq A A = true
-  eq B B = true
-  eq C C = true
-  eq D D = true
-  eq E E = true
-  eq F F = true
-  eq G G = true
-  eq H H = true
-  eq I I = true
-  eq J J = true
-  eq _ _ = false
+  eq = genericEq
 
 smallKeyToInt :: SmallKey -> Int
 smallKeyToInt A = 0

@@ -27,6 +27,7 @@
     "purescript-st": "^2.0.0"
   },
   "devDependencies": {
-    "purescript-quickcheck": "^3.0.0"
+    "purescript-quickcheck": "^3.0.0",
+    "purescript-generics-rep": "^4.1.0"
   }
 }
