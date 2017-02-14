@@ -100,14 +100,12 @@ runInstructions instrs t0 = foldl step t0 instrs
   step tree (Insert k v) = M.insert k v tree
   step tree (Delete k) = M.delete k tree
 
-smallKey :: SmallKey -> SmallKey
-smallKey k = k
-
-number :: Int -> Int
-number n = n
-
 smallKeyToNumberMap :: M.Map SmallKey Int -> M.Map SmallKey Int
 smallKeyToNumberMap m = m
+
+data KeyValue = KeyValue SmallKey Int
+instance arbKeyValue :: Arbitrary KeyValue where
+  arbitrary = KeyValue <$> arbitrary <*> arbitrary
 
 mapTests :: forall eff. QC eff Unit
 mapTests = do
@@ -115,31 +113,31 @@ mapTests = do
   -- Data.Map
 
   log "Test inserting into empty tree"
-  quickCheck $ \k v -> M.lookup (smallKey k) (M.insert k v M.empty) == Just (number v)
+  quickCheck $ \(KeyValue k v) -> M.lookup k (M.insert k v M.empty) == Just v
     <?> "k: " <> show k <> ", v: " <> show v
 
   log "Test delete after inserting"
-  quickCheck $ \k v -> M.isEmpty (M.delete (smallKey k) (M.insert k (number v) M.empty))
+  quickCheck $ \(KeyValue k v) -> M.isEmpty (M.delete k (M.insert k v M.empty))
     <?> "k: " <> show k <> ", v: " <> show v
 
   log "Test pop after inserting"
-  quickCheck $ \k v -> M.pop (smallKey k) (M.insert k (number v) M.empty) == Just (Tuple v M.empty)
+  quickCheck $ \(KeyValue k v) -> M.pop k (M.insert k v M.empty) == Just (Tuple v M.empty)
     <?> "k: " <> show k <> ", v: " <> show v
 
   log "Pop non-existent key"
-  quickCheck $ \k1 k2 v -> k1 == k2 || M.pop (smallKey k2) (M.insert k1 (number v) M.empty) == Nothing
+  quickCheck $ \k1 (KeyValue k2 v) -> k1 == k2 || M.pop k2 (M.insert k1 v M.empty) == Nothing
     <?> "k1: " <> show k1 <> ", k2: " <> show k2 <> ", v: " <> show v
 
   log "Insert two, lookup first"
-  quickCheck $ \k1 v1 k2 v2 -> k1 == k2 || M.lookup k1 (M.insert (smallKey k2) (number v2) (M.insert (smallKey k1) (number v1) M.empty)) == Just v1
+  quickCheck $ \(KeyValue k1 v1) k2 v2 -> k1 == k2 || M.lookup k1 (M.insert k2 v2 (M.insert k1 v1 M.empty)) == Just v1
     <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Insert two, lookup second"
-  quickCheck $ \k1 v1 k2 v2 -> M.lookup k2 (M.insert (smallKey k2) (number v2) (M.insert (smallKey k1) (number v1) M.empty)) == Just v2
+  quickCheck $ \(KeyValue k1 v1) k2 v2 -> M.lookup k2 (M.insert k2 v2 (M.insert k1 v1 M.empty)) == Just v2
     <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Insert two, delete one"
-  quickCheck $ \k1 v1 k2 v2 -> k1 == k2 || M.lookup k2 (M.delete k1 (M.insert (smallKey k2) (number v2) (M.insert (smallKey k1) (number v1) M.empty))) == Just v2
+  quickCheck $ \(KeyValue k1 v1) k2 v2 -> k1 == k2 || M.lookup k2 (M.delete k1 (M.insert k2 v2 (M.insert k1 v1 M.empty))) == Just v2
     <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Check balance property"
@@ -153,17 +151,17 @@ mapTests = do
   quickCheck $ \k -> M.lookup k (M.empty :: M.Map SmallKey Int) == Nothing
 
   log "Lookup from singleton"
-  quickCheck $ \k v -> M.lookup (k :: SmallKey) (M.singleton k (v :: Int)) == Just v
+  quickCheck $ \(KeyValue k v) -> M.lookup k (M.singleton k v ) == Just v
 
   log "Random lookup"
   quickCheck' 1000 $ \instrs k v ->
     let
       tree :: M.Map SmallKey Int
       tree = M.insert k v (runInstructions instrs M.empty)
-    in M.lookup k tree == Just v <?> ("instrs:\n  " <> show instrs <> "\nk:\n  " <> show k <> "\nv:\n  " <> show v)
+    in M.lookup k tree == Just v <?> "instrs:\n  " <> show instrs <> "\nk:\n  " <> show k <> "\nv:\n  " <> show v
 
   log "Singleton to list"
-  quickCheck $ \k v -> M.toUnfoldable (M.singleton k v :: M.Map SmallKey Int) == singleton (Tuple k v)
+  quickCheck $ \(KeyValue k v) -> M.toUnfoldable (M.singleton k v) == singleton (Tuple k v)
 
   log "fromFoldable [] = empty"
   quickCheck (M.fromFoldable [] == (M.empty :: M.Map Unit Unit)
@@ -219,9 +217,9 @@ mapTests = do
 
   log "Lookup from union"
   quickCheck $ \(TestMap m1) (TestMap m2) k ->
-    M.lookup (smallKey k) (M.union m1 m2) == (case M.lookup k m1 of
+    M.lookup (k :: SmallKey) (M.union m1 m2) == (case M.lookup k m1 of
       Nothing -> M.lookup k m2
-      Just v -> Just (number v)) <?> "m1: " <> show m1 <> ", m2: " <> show m2 <> ", k: " <> show k <> ", v1: " <> show (M.lookup k m1) <> ", v2: " <> show (M.lookup k m2) <> ", union: " <> show (M.union m1 m2)
+      Just v -> Just (v :: Int)) <?> "m1: " <> show m1 <> ", m2: " <> show m2 <> ", k: " <> show k <> ", v1: " <> show (M.lookup k m1) <> ", v2: " <> show (M.lookup k m2) <> ", union: " <> show (M.union m1 m2)
 
   log "Union is idempotent"
   quickCheck $ \(TestMap m1) (TestMap m2) -> (m1 `M.union` m2) == ((m1 `M.union` m2) `M.union` (m2 :: M.Map SmallKey Int))
