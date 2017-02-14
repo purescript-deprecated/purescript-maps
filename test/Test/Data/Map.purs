@@ -4,17 +4,14 @@ import Prelude
 import Data.List.NonEmpty as NEL
 import Data.Map as M
 import Control.Alt ((<|>))
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (log, CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Eff.Console (log)
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
 import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..), fst)
 import Partial.Unsafe (unsafePartial)
-import Test.QuickCheck ((<?>), (===), quickCheck, quickCheck')
+import Test.QuickCheck (QC, (<?>), (===), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype TestMap k v = TestMap (M.Map k v)
@@ -112,7 +109,7 @@ number n = n
 smallKeyToNumberMap :: M.Map SmallKey Int -> M.Map SmallKey Int
 smallKeyToNumberMap m = m
 
-mapTests :: forall eff. Eff (console :: CONSOLE, random :: RANDOM, err :: EXCEPTION | eff) Unit
+mapTests :: forall eff. QC eff Unit
 mapTests = do
 
   -- Data.Map

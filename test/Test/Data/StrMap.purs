@@ -2,10 +2,7 @@ module Test.Data.StrMap where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (log, CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Eff.Console (log)
 
 import Data.Foldable (foldl)
 import Data.Function (on)
@@ -17,7 +14,7 @@ import Data.Tuple (Tuple(..), fst)
 
 import Partial.Unsafe (unsafePartial)
 
-import Test.QuickCheck ((<?>), quickCheck, quickCheck', (===))
+import Test.QuickCheck (QC, (<?>), quickCheck, quickCheck', (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen as Gen
 
@@ -53,7 +50,7 @@ runInstructions instrs t0 = foldl step t0 instrs
 number :: Int -> Int
 number n = n
 
-strMapTests :: forall eff. Eff (console :: CONSOLE, random :: RANDOM, err :: EXCEPTION | eff) Unit
+strMapTests :: forall eff. QC eff Unit
 strMapTests = do
   log "Test inserting into empty tree"
   quickCheck $ \k v -> M.lookup k (M.insert k v M.empty) == Just (number v)
