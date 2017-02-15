@@ -2,10 +2,7 @@ module Test.Data.StrMap where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (log, CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Eff.Console (log)
 
 import Data.Foldable (foldl)
 import Data.Function (on)
@@ -17,7 +14,7 @@ import Data.Tuple (Tuple(..), fst)
 
 import Partial.Unsafe (unsafePartial)
 
-import Test.QuickCheck ((<?>), quickCheck, quickCheck', (===))
+import Test.QuickCheck (QC, (<?>), quickCheck, quickCheck', (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen as Gen
 
@@ -53,35 +50,35 @@ runInstructions instrs t0 = foldl step t0 instrs
 number :: Int -> Int
 number n = n
 
-strMapTests :: forall eff. Eff (console :: CONSOLE, random :: RANDOM, err :: EXCEPTION | eff) Unit
+strMapTests :: forall eff. QC eff Unit
 strMapTests = do
   log "Test inserting into empty tree"
   quickCheck $ \k v -> M.lookup k (M.insert k v M.empty) == Just (number v)
-    <?> ("k: " <> show k <> ", v: " <> show v)
+    <?> "k: " <> show k <> ", v: " <> show v
 
   log "Test delete after inserting"
   quickCheck $ \k v -> M.isEmpty (M.delete k (M.insert k (number v) M.empty))
-    <?> ("k: " <> show k <> ", v: " <> show v)
+    <?> "k: " <> show k <> ", v: " <> show v
 
   log "Test pop after inserting"
   quickCheck $ \k v -> M.pop k (M.insert k (number v) M.empty) == Just (Tuple v M.empty)
-    <?> ("k: " <> show k <> ", v: " <> show v)
+    <?> "k: " <> show k <> ", v: " <> show v
 
   log "Pop non-existent key"
   quickCheck $ \k1 k2 v -> k1 == k2 || M.pop k2 (M.insert k1 (number v) M.empty) == Nothing
-    <?> ("k1: " <> show k1 <> ", k2: " <> show k2 <> ", v: " <> show v)
+    <?> "k1: " <> show k1 <> ", k2: " <> show k2 <> ", v: " <> show v
 
   log "Insert two, lookup first"
   quickCheck $ \k1 v1 k2 v2 -> k1 == k2 || M.lookup k1 (M.insert k2 (number v2) (M.insert k1 (number v1) M.empty)) == Just v1
-    <?> ("k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2)
+    <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Insert two, lookup second"
   quickCheck $ \k1 v1 k2 v2 -> M.lookup k2 (M.insert k2 (number v2) (M.insert k1 (number v1) M.empty)) == Just v2
-    <?> ("k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2)
+    <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Insert two, delete one"
   quickCheck $ \k1 v1 k2 v2 -> k1 == k2 || M.lookup k2 (M.delete k1 (M.insert k2 (number v2) (M.insert k1 (number v1) M.empty))) == Just v2
-    <?> ("k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2)
+    <?> "k1: " <> show k1 <> ", v1: " <> show v1 <> ", k2: " <> show k2 <> ", v2: " <> show v2
 
   log "Lookup from empty"
   quickCheck $ \k -> M.lookup k (M.empty :: M.StrMap Int) == Nothing
@@ -94,7 +91,7 @@ strMapTests = do
     let
       tree :: M.StrMap Int
       tree = M.insert k v (runInstructions instrs M.empty)
-    in M.lookup k tree == Just v <?> ("instrs:\n  " <> show instrs <> "\nk:\n  " <> show k <> "\nv:\n  " <> show v)
+    in M.lookup k tree == Just v <?> "instrs:\n  " <> show instrs <> "\nk:\n  " <> show k <> "\nv:\n  " <> show v
 
   log "Singleton to list"
   quickCheck $ \k v -> M.toList (M.singleton k v :: M.StrMap Int) == singleton (Tuple k v)
@@ -146,11 +143,11 @@ strMapTests = do
   quickCheck $ \(TestStrMap m1) (TestStrMap m2) k ->
     M.lookup k (M.union m1 m2) == (case M.lookup k m1 of
       Nothing -> M.lookup k m2
-      Just v -> Just (number v)) <?> ("m1: " <> show m1 <> ", m2: " <> show m2 <> ", k: " <> show k <> ", v1: " <> show (M.lookup k m1) <> ", v2: " <> show (M.lookup k m2) <> ", union: " <> show (M.union m1 m2))
+      Just v -> Just (number v)) <?> "m1: " <> show m1 <> ", m2: " <> show m2 <> ", k: " <> show k <> ", v1: " <> show (M.lookup k m1) <> ", v2: " <> show (M.lookup k m2) <> ", union: " <> show (M.union m1 m2)
 
   log "Union is idempotent"
   quickCheck $ \(TestStrMap m1) (TestStrMap m2) ->
-    (m1 `M.union` m2) == ((m1 `M.union` m2) `M.union` (m2 :: M.StrMap Int)) <?> (show (M.size (m1 `M.union` m2)) <> " != " <> show (M.size ((m1 `M.union` m2) `M.union` m2)))
+    (m1 `M.union` m2) == ((m1 `M.union` m2) `M.union` (m2 :: M.StrMap Int)) <?> show (M.size (m1 `M.union` m2)) <> " != " <> show (M.size ((m1 `M.union` m2) `M.union` m2))
 
   log "fromFoldable = zip keys values"
   quickCheck $ \(TestStrMap m) -> M.toList m == zipWith Tuple (fromFoldable $ M.keys m) (M.values m :: List Int)
@@ -166,7 +163,7 @@ strMapTests = do
   quickCheck \(TestStrMap m) ->
     let lhs = go m
         rhs = go m
-    in lhs == rhs <?> ("lhs: " <> show lhs <> ", rhs: " <> show rhs)
+    in lhs == rhs <?> "lhs: " <> show lhs <> ", rhs: " <> show rhs
     where
     go :: M.StrMap (Array Ordering) -> Array Ordering
     go = M.foldMap \_ v -> v
