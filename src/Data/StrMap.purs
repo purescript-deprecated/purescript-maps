@@ -277,7 +277,7 @@ filter predicate m = pureST go
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | on the key fails to hold.
-filterKeys :: forall a. (String -> Boolean) -> StrMap a -> StrMap a
+filterKeys :: (String -> Boolean) -> StrMap ~> StrMap
 filterKeys predicate = filter $ const <<< predicate
 
 -- | Filter out those key/value pairs of a map for which a predicate
