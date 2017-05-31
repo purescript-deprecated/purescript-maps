@@ -456,7 +456,8 @@ mapWithKey f (Three left k1 v1 mid k2 v2 right) = Three (mapWithKey f left) k1 (
 
 -- | Divide into two maps of keys less and greater than the provided argument.
 split :: forall k v. Ord k => k -> Map k v -> { less :: Map k v, greater :: Map k v }
-split k = mapify <<< LL.span (\(Tuple k' v') -> k' < k) <<< toAscUnfoldable
+split k = mapify <<< LL.span (\(Tuple k' _) -> k' < k) <<< toAscUnfoldable
   where
     mapify {init: ls, rest: gs} =
-           {less: fromFoldable ls, greater: fromFoldable gs}
+           {less: fromFoldable ls,
+            greater: fromFoldable $ LL.dropWhile (\(Tuple k' _) -> k' == k) gs}
