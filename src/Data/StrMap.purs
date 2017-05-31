@@ -22,6 +22,7 @@ module Data.StrMap
   , alter
   , update
   , mapWithKey
+  , filter
   , filterKeys
   , filterValues
   , keys
@@ -261,24 +262,25 @@ instance semigroupStrMap :: (Semigroup a) => Semigroup (StrMap a) where
 instance monoidStrMap :: (Semigroup a) => Monoid (StrMap a) where
   mempty = empty
 
+-- | Filter out those key/value pairs of a map for which a predicate
+-- | fails to hold.
+filter :: forall a. (String -> a -> Boolean) -> StrMap a -> StrMap a
+filter predicate m = pureST go
+  where
+  go :: forall h e. Eff (st :: ST.ST h | e) (SM.STStrMap h a)
+  go = do
+    m' <- SM.new
+    foldM step m' m
+
+    where
+    step acc k v = if predicate k v then SM.poke acc k v else pure acc
+
+-- | Filter out those key/value pairs of a map for which a predicate
+-- | on the key fails to hold.
 filterKeys :: forall a. (String -> Boolean) -> StrMap a -> StrMap a
-filterKeys predicate m = pureST go
-  where
-  go :: forall h e. Eff (st :: ST.ST h | e) (SM.STStrMap h a)
-  go = do
-    m' <- SM.new
-    foldM step m' m
+filterKeys predicate = filter $ const <<< predicate
 
-    where
-    step acc k v = if predicate k then SM.poke acc k v else pure acc
-
+-- | Filter out those key/value pairs of a map for which a predicate
+-- | on the value fails to hold.
 filterValues :: forall a. (a -> Boolean) -> StrMap a -> StrMap a
-filterValues predicate m = pureST go
-  where
-  go :: forall h e. Eff (st :: ST.ST h | e) (SM.STStrMap h a)
-  go = do
-    m' <- SM.new
-    foldM step m' m
-
-    where
-    step acc k v = if predicate v then SM.poke acc k v else pure acc
+filterValues predicate = filter $ const predicate

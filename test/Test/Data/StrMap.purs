@@ -15,7 +15,7 @@ import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe(..))
 import Data.NonEmpty ((:|))
 import Data.StrMap as M
-import Data.Tuple (Tuple(..), fst)
+import Data.Tuple (Tuple(..), fst, uncurry)
 import Data.Traversable (sequence)
 
 import Partial.Unsafe (unsafePartial)
@@ -112,6 +112,14 @@ strMapTests = do
 
   log "Singleton to list"
   quickCheck $ \k v -> M.toUnfoldable (M.singleton k v :: M.StrMap Int) == L.singleton (Tuple k v)
+
+  log "filter gives submap"
+  quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
+                 M.isSubmap (M.filter p s) s
+
+  log "filter keeps those keys for which predicate is true"
+  quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
+                 A.all (uncurry p) (M.toAscUnfoldable (M.filter p s) :: Array (Tuple String Int))
 
   log "filterKeys gives submap"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
