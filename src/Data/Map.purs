@@ -257,18 +257,21 @@ data KickUp k v = KickUp (Map k v) k v (Map k v)
 insert :: forall k v. Ord k => k -> v -> Map k v -> Map k v
 insert k v = down Nil
   where
+  comp :: k -> k -> Ordering
+  comp = compare
+
   down :: List (TreeContext k v) -> Map k v -> Map k v
   down ctx Leaf = up ctx (KickUp Leaf k v Leaf)
   down ctx (Two left k1 v1 right) =
-    case compare k k1 of
+    case comp k k1 of
       EQ -> fromZipper ctx (Two left k v right)
       LT -> down (Cons (TwoLeft k1 v1 right) ctx) left
       _  -> down (Cons (TwoRight left k1 v1) ctx) right
   down ctx (Three left k1 v1 mid k2 v2 right) =
-    case compare k k1 of
+    case comp k k1 of
       EQ -> fromZipper ctx (Three left k v mid k2 v2 right)
       c1 ->
-        case c1, compare k k2 of
+        case c1, comp k k2 of
           _ , EQ -> fromZipper ctx (Three left k1 v1 mid k v right)
           LT, _  -> down (Cons (ThreeLeft k1 v1 mid k2 v2 right) ctx) left
           GT, LT -> down (Cons (ThreeMiddle left k1 v1 k2 v2 right) ctx) mid
