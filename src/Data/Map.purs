@@ -149,17 +149,20 @@ checkValid tree = length (nub (allHeights tree)) == one
 lookup :: forall k v. Ord k => k -> Map k v -> Maybe v
 lookup k = go
   where
+    comp :: k -> k -> Ordering
+    comp = compare
+
     go Leaf = Nothing
     go (Two left k1 v right) =
-      case compare k k1 of
+      case comp k k1 of
         EQ -> Just v
         LT -> go left
         _  -> go right
     go (Three left k1 v1 mid k2 v2 right) =
-      case compare k k1 of
+      case comp k k1 of
         EQ -> Just v1
         c1 ->
-          case c1, compare k k2 of
+          case c1, comp k k2 of
             _ , EQ -> Just v2
             LT, _  -> go left
             _ , GT -> go right
