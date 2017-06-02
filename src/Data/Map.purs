@@ -173,12 +173,15 @@ lookup k = go
 lookupLE :: forall k v. Ord k => k -> Map k v -> Maybe { key :: k, value :: v }
 lookupLE k = go
   where
+    comp :: k -> k -> Ordering
+    comp = compare
+
     go Leaf = Nothing
-    go (Two left k1 v1 right) = case compare k k1 of
+    go (Two left k1 v1 right) = case comp k k1 of
       EQ -> Just { key: k1, value: v1 }
       GT -> Just $ fromMaybe { key: k1, value: v1 } $ go right
       LT -> go left
-    go (Three left k1 v1 mid k2 v2 right) = case compare k k2 of
+    go (Three left k1 v1 mid k2 v2 right) = case comp k k2 of
       EQ -> Just { key: k2, value: v2 }
       GT -> Just $ fromMaybe { key: k2, value: v2 } $ go right
       LT -> go $ Two left k1 v1 mid
@@ -187,12 +190,15 @@ lookupLE k = go
 lookupLT :: forall k v. Ord k => k -> Map k v -> Maybe { key :: k, value :: v }
 lookupLT k = go
   where
+    comp :: k -> k -> Ordering
+    comp = compare
+
     go Leaf = Nothing
-    go (Two left k1 v1 right) = case compare k k1 of
+    go (Two left k1 v1 right) = case comp k k1 of
       EQ -> findMax left
       GT -> Just $ fromMaybe { key: k1, value: v1 } $ go right
       LT -> go left
-    go (Three left k1 v1 mid k2 v2 right) = case compare k k2 of
+    go (Three left k1 v1 mid k2 v2 right) = case comp k k2 of
       EQ -> findMax $ Two left k1 v1 mid
       GT -> Just $ fromMaybe { key: k2, value: v2 } $ go right
       LT -> go $ Two left k1 v1 mid
@@ -201,12 +207,15 @@ lookupLT k = go
 lookupGE :: forall k v. Ord k => k -> Map k v -> Maybe { key :: k, value :: v }
 lookupGE k = go
   where
+    comp :: k -> k -> Ordering
+    comp = compare
+
     go Leaf = Nothing
-    go (Two left k1 v1 right) = case compare k k1 of
+    go (Two left k1 v1 right) = case comp k k1 of
       EQ -> Just { key: k1, value: v1 }
       LT -> Just $ fromMaybe { key: k1, value: v1 } $ go left
       GT -> go right
-    go (Three left k1 v1 mid k2 v2 right) = case compare k k1 of
+    go (Three left k1 v1 mid k2 v2 right) = case comp k k1 of
       EQ -> Just { key: k1, value: v1 }
       LT -> Just $ fromMaybe { key: k1, value: v1 } $ go left
       GT -> go $ Two mid k2 v2 right
@@ -215,12 +224,15 @@ lookupGE k = go
 lookupGT :: forall k v. Ord k => k -> Map k v -> Maybe { key :: k, value :: v }
 lookupGT k = go
   where
+    comp :: k -> k -> Ordering
+    comp = compare
+
     go Leaf = Nothing
-    go (Two left k1 v1 right) = case compare k k1 of
+    go (Two left k1 v1 right) = case comp k k1 of
       EQ -> findMin right
       LT -> Just $ fromMaybe { key: k1, value: v1 } $ go left
       GT -> go right
-    go (Three left k1 v1 mid k2 v2 right) = case compare k k1 of
+    go (Three left k1 v1 mid k2 v2 right) = case comp k k1 of
       EQ -> findMin $ Two mid k2 v2 right
       LT -> Just $ fromMaybe { key: k1, value: v1 } $ go left
       GT -> go $ Two mid k2 v2 right
