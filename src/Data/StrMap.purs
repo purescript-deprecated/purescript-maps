@@ -22,6 +22,8 @@ module Data.StrMap
   , alter
   , update
   , mapWithKey
+  , filterKey
+  , filterValue
   , keys
   , values
   , union
@@ -258,3 +260,15 @@ instance semigroupStrMap :: (Semigroup a) => Semigroup (StrMap a) where
 
 instance monoidStrMap :: (Semigroup a) => Monoid (StrMap a) where
   mempty = empty
+
+filterKey :: forall a. (String -> Boolean) -> StrMap a -> StrMap a
+filterKey predicate = fold step empty
+  where
+    step acc k v | predicate k = insert k v acc
+    step acc _ _               =            acc
+             
+filterValue :: forall a. (a -> Boolean) -> StrMap a -> StrMap a
+filterValue predicate = fold step empty
+  where
+    step acc k v | predicate v = insert k v acc
+    step acc _ _               =            acc

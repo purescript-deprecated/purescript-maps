@@ -25,6 +25,10 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen as Gen
 
 newtype TestStrMap v = TestStrMap (M.StrMap v)
+newtype TestIntMap   = TestIntMap (M.StrMap Int)
+
+derive newtype instance showTestIntMap :: Show TestIntMap
+derive newtype instance eqTestIntMap   :: Eq   TestIntMap
 
 instance arbTestStrMap :: (Arbitrary v) => Arbitrary (TestStrMap v) where
   arbitrary = TestStrMap <<< (M.fromFoldable :: L.List (Tuple String v) -> M.StrMap v) <$> arbitrary
@@ -33,6 +37,9 @@ newtype SmallArray v = SmallArray (Array v)
 
 instance arbSmallArray :: (Arbitrary v) => Arbitrary (SmallArray v) where
   arbitrary = SmallArray <$> Gen.resize 3 arbitrary
+
+instance arbTestIntMap :: Arbitrary TestIntMap where
+  arbitrary = TestIntMap <<< (M.fromFoldable :: List (Tuple String Int) -> M.StrMap Int) <$> arbitrary
 
 data Instruction k v = Insert k v | Delete k
 
@@ -112,6 +119,18 @@ strMapTests = do
 
   log "Singleton to list"
   quickCheck $ \k v -> M.toUnfoldable (M.singleton k v :: M.StrMap Int) == L.singleton (Tuple k v)
+
+  log "filterKey gives submap"
+  quickCheck $ \(TestIntMap s) p -> M.isSubmap (M.filterKey   p s) s
+
+  log "filterKey keeps those keys for which predicate is true"
+  quickCheck $ \(TestIntMap s) p -> A.all p (M.keys (M.filterKey p s))
+
+  log "filterValue gives submap"
+  quickCheck $ \(TestIntMap s) p -> M.isSubmap (M.filterValue p s) s
+
+  log "filterValue keeps those values for which predicate is true"
+  quickCheck $ \(TestIntMap s) p -> A.all p (M.values (M.filterValue p s))
 
   log "fromFoldable [] = empty"
   quickCheck (M.fromFoldable [] == (M.empty :: M.StrMap Unit)
