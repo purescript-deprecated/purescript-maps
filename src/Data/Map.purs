@@ -33,9 +33,9 @@ module Data.Map
   , isSubmap
   , size
   , mapWithKey
-  , filter
+  , filterWithKey
   , filterKeys
-  , filterValues
+  , filter
   ) where
 
 import Prelude
@@ -483,16 +483,16 @@ mapWithKey f (Three left k1 v1 mid k2 v2 right) = Three (mapWithKey f left) k1 (
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | fails to hold.
-filter :: forall k v. Ord k => (k -> v -> Boolean) -> Map k v -> Map k v
-filter predicate =
+filterWithKey :: forall k v. Ord k => (k -> v -> Boolean) -> Map k v -> Map k v
+filterWithKey predicate =
   fromFoldable <<< LL.filter (uncurry predicate) <<< toUnfoldable
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | on the key fails to hold.
 filterKeys :: forall k. Ord k => (k -> Boolean) -> Map k ~> Map k
-filterKeys predicate = filter $ const <<< predicate
+filterKeys predicate = filterWithKey $ const <<< predicate
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | on the value fails to hold.
-filterValues :: forall k v. Ord k => (v -> Boolean) -> Map k v -> Map k v
-filterValues predicate = filter $ const predicate
+filter :: forall k v. Ord k => (v -> Boolean) -> Map k v -> Map k v
+filter predicate = filterWithKey $ const predicate

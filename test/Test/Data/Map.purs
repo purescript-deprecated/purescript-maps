@@ -276,13 +276,13 @@ mapTests = do
     resultViaLists = m # toList # map (\(Tuple k v) → Tuple k (f k v)) # M.fromFoldable
     in resultViaMapWithKey === resultViaLists
 
-  log "filter gives submap"
+  log "filterWithKey gives submap"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 M.isSubmap (M.filter p s) s
+                 M.isSubmap (M.filterWithKey p s) s
 
-  log "filter keeps those keys for which predicate is true"
+  log "filterWithKey keeps those keys for which predicate is true"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 A.all (uncurry p) (M.toAscUnfoldable (M.filter p s) :: Array (Tuple String Int))
+                 A.all (uncurry p) (M.toAscUnfoldable (M.filterWithKey p s) :: Array (Tuple String Int))
 
   log "filterKeys gives submap"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
@@ -292,10 +292,10 @@ mapTests = do
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
                  A.all p (M.keys (M.filterKeys p s))
 
-  log "filterValues gives submap"
+  log "filter gives submap"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 M.isSubmap (M.filterValues p s) s
+                 M.isSubmap (M.filter p s) s
 
-  log "filterValues keeps those values for which predicate is true"
+  log "filter keeps those values for which predicate is true"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 A.all p (M.values (M.filterValues p s))
+                 A.all p (M.values (M.filter p s))
