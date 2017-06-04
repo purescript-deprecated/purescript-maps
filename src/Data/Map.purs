@@ -32,12 +32,14 @@ module Data.Map
   , unions
   , size
   , mapWithKey
+  , split
   ) where
 
 import Prelude
 import Data.Eq (class Eq1)
 import Data.Foldable (foldl, foldMap, foldr, class Foldable)
 import Data.List (List(..), (:), length, nub)
+import Data.List.Lazy as LL
 import Data.Maybe (Maybe(..), maybe, isJust, fromMaybe)
 import Data.Monoid (class Monoid)
 import Data.Ord (class Ord1)
@@ -470,3 +472,11 @@ mapWithKey :: forall k v v'. (k -> v -> v') -> Map k v -> Map k v'
 mapWithKey _ Leaf = Leaf
 mapWithKey f (Two left k v right) = Two (mapWithKey f left) k (f k v) (mapWithKey f right)
 mapWithKey f (Three left k1 v1 mid k2 v2 right) = Three (mapWithKey f left) k1 (f k1 v1) (mapWithKey f mid) k2 (f k2 v2) (mapWithKey f right)
+
+-- | Divide into two maps of keys less and greater than the provided argument.
+split :: forall k v. Ord k => k -> Map k v -> { less :: Map k v, greater :: Map k v }
+split k = mapify <<< LL.span (\(Tuple k' _) -> k' < k) <<< toAscUnfoldable
+  where
+    mapify {init: ls, rest: gs} =
+           {less: fromFoldable ls,
+            greater: fromFoldable $ LL.dropWhile (\(Tuple k' _) -> k' == k) gs}

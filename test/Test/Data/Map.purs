@@ -274,3 +274,9 @@ mapTests = do
     toList = M.toUnfoldable :: forall k v. M.Map k v -> List (Tuple k v)
     resultViaLists = m # toList # map (\(Tuple k v) → Tuple k (f k v)) # M.fromFoldable
     in resultViaMapWithKey === resultViaLists
+
+  log "split is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) s -> let
+    {less: ls, greater: gs} = M.split s m
+    in (all (_ < s) $ M.keys ls) && (all (_ > s) $ M.keys gs) &&
+       M.size ls + M.size gs == M.size (M.delete s m)
