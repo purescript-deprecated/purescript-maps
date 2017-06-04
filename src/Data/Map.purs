@@ -32,6 +32,9 @@ module Data.Map
   , unions
   , size
   , mapWithKey
+  , OnValues(..)
+  , onValues
+  , frequencies
   ) where
 
 import Prelude
@@ -40,6 +43,8 @@ import Data.Foldable (foldl, foldMap, foldr, class Foldable)
 import Data.List (List(..), (:), length, nub)
 import Data.Maybe (Maybe(..), maybe, isJust, fromMaybe)
 import Data.Monoid (class Monoid)
+import Data.Monoid.Additive (Additive(..))
+import Data.Newtype (class Newtype, wrap, unwrap, alaF)
 import Data.Ord (class Ord1)
 import Data.Traversable (traverse, class Traversable)
 import Data.Tuple (Tuple(Tuple), snd)
@@ -103,6 +108,35 @@ instance traversableMap :: Traversable (Map k) where
           <*> f v2
           <*> traverse f right
   sequence = traverse id
+
+-- | The Semigroup instance combines values via a `Newtype w v`.
+newtype OnValues w k v = OnValues (Map k v)
+
+onValues :: forall w k v. Newtype w v => (v -> w) -> Map k v -> OnValues w k v
+onValues _ = OnValues
+
+derive instance newtypeOnValues :: Newtype (OnValues w k v) _
+derive newtype instance eq1OnValues :: Eq k => Eq1 (OnValues w k)
+derive newtype instance eqOnValues :: (Eq k, Eq v) => Eq (OnValues w k v)
+derive newtype instance ordOnValues :: (Ord k, Ord v) => Ord (OnValues w k v)
+derive newtype instance ord1OnValues :: Ord k => Ord1 (OnValues w k)
+derive newtype instance showOnValues :: (Show k, Show v) => Show (OnValues w k v)
+derive newtype instance functorOnValues :: Functor (OnValues w k)
+derive newtype instance foldableOnValues :: Foldable (OnValues w k)
+derive newtype instance traversableOnValues :: Traversable (OnValues w k)
+
+appendOnValues :: forall w k v.
+  Ord k =>
+  Semigroup w =>
+  Newtype w v =>
+  OnValues w k v -> OnValues w k v -> OnValues w k v
+appendOnValues (OnValues l) (OnValues r) = OnValues $ unionWith (\a b -> unwrap (wrap a <> wrap b :: w)) l r
+
+instance semigroupOnValues :: (Ord k, Semigroup w, Newtype w v) => Semigroup (OnValues w k v) where
+  append = appendOnValues
+
+instance monoidOnValues :: (Ord k, Monoid w, Newtype w v) => Monoid (OnValues w k v) where
+  mempty = OnValues empty
 
 -- | Render a `Map` as a `String`
 showTree :: forall k v. Show k => Show v => Map k v -> String
@@ -470,3 +504,7 @@ mapWithKey :: forall k v v'. (k -> v -> v') -> Map k v -> Map k v'
 mapWithKey _ Leaf = Leaf
 mapWithKey f (Two left k v right) = Two (mapWithKey f left) k (f k v) (mapWithKey f right)
 mapWithKey f (Three left k1 v1 mid k2 v2 right) = Three (mapWithKey f left) k1 (f k1 v1) (mapWithKey f mid) k2 (f k2 v2) (mapWithKey f right)
+
+frequencies :: forall f k v. Foldable f => Ord k => Semiring v => f k -> Map k v
+frequencies = (onValues Additive `alaF` foldMap) (_ `singleton` one)
+

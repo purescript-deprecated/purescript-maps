@@ -1,18 +1,18 @@
 module Test.Data.Map where
 
 import Prelude
-import Data.List.NonEmpty as NEL
-import Data.Map as M
 import Control.Alt ((<|>))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (log, CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
-import Data.NonEmpty ((:|))
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
 import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
+import Data.List.NonEmpty as NEL
+import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.NonEmpty ((:|))
 import Data.Tuple (Tuple(..), fst)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck ((<?>), (===), quickCheck, quickCheck')
@@ -274,3 +274,7 @@ mapTests = do
     toList = M.toUnfoldable :: forall k v. M.Map k v -> List (Tuple k v)
     resultViaLists = m # toList # map (\(Tuple k v) → Tuple k (f k v)) # M.fromFoldable
     in resultViaMapWithKey === resultViaLists
+
+  log "onValues/frequencies"
+  quickCheck $
+    M.frequencies ["a", "b", "d", "c", "b", "d", "d"] === M.fromFoldable [Tuple "a" 1, Tuple "b" 2, Tuple "c" 1, Tuple "d" 3]
