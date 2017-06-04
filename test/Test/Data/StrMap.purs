@@ -113,13 +113,13 @@ strMapTests = do
   log "Singleton to list"
   quickCheck $ \k v -> M.toUnfoldable (M.singleton k v :: M.StrMap Int) == L.singleton (Tuple k v)
 
-  log "filter gives submap"
+  log "filterWithKey gives submap"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
-                 M.isSubmap (M.filter p s) s
+                 M.isSubmap (M.filterWithKey p s) s
 
-  log "filter keeps those keys for which predicate is true"
+  log "filterWithKey keeps those keys for which predicate is true"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
-                 A.all (uncurry p) (M.toAscUnfoldable (M.filter p s) :: Array (Tuple String Int))
+                 A.all (uncurry p) (M.toAscUnfoldable (M.filterWithKey p s) :: Array (Tuple String Int))
 
   log "filterKeys gives submap"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
@@ -129,13 +129,13 @@ strMapTests = do
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
                  A.all p (M.keys (M.filterKeys p s))
 
-  log "filterValues gives submap"
+  log "filter gives submap"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
-                 M.isSubmap (M.filterValues p s) s
+                 M.isSubmap (M.filter p s) s
 
-  log "filterValues keeps those values for which predicate is true"
+  log "filter keeps those values for which predicate is true"
   quickCheck $ \(TestStrMap (s :: M.StrMap Int)) p ->
-                 A.all p (M.values (M.filterValues p s))
+                 A.all p (M.values (M.filter p s))
 
   log "fromFoldable [] = empty"
   quickCheck (M.fromFoldable [] == (M.empty :: M.StrMap Unit)

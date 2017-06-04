@@ -22,9 +22,9 @@ module Data.StrMap
   , alter
   , update
   , mapWithKey
-  , filter
+  , filterWithKey
   , filterKeys
-  , filterValues
+  , filter
   , keys
   , values
   , union
@@ -264,8 +264,8 @@ instance monoidStrMap :: (Semigroup a) => Monoid (StrMap a) where
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | fails to hold.
-filter :: forall a. (String -> a -> Boolean) -> StrMap a -> StrMap a
-filter predicate m = pureST go
+filterWithKey :: forall a. (String -> a -> Boolean) -> StrMap a -> StrMap a
+filterWithKey predicate m = pureST go
   where
   go :: forall h e. Eff (st :: ST.ST h | e) (SM.STStrMap h a)
   go = do
@@ -278,9 +278,9 @@ filter predicate m = pureST go
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | on the key fails to hold.
 filterKeys :: (String -> Boolean) -> StrMap ~> StrMap
-filterKeys predicate = filter $ const <<< predicate
+filterKeys predicate = filterWithKey $ const <<< predicate
 
 -- | Filter out those key/value pairs of a map for which a predicate
 -- | on the value fails to hold.
-filterValues :: forall a. (a -> Boolean) -> StrMap a -> StrMap a
-filterValues predicate = filter $ const predicate
+filter :: forall a. (a -> Boolean) -> StrMap a -> StrMap a
+filter predicate = filterWithKey $ const predicate
