@@ -27,6 +27,7 @@
     "purescript-st": "^3.0.0"
   },
   "devDependencies": {
-    "purescript-quickcheck": "^4.0.0"
+    "purescript-quickcheck": "^4.0.0",
+    "purescript-minibench": "^1.0.0"
   }
 }
