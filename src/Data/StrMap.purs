@@ -184,7 +184,7 @@ insert k v = mutate (\s -> void $ SM.poke s k v)
 foreign import _unsafeDeleteStrMap :: forall a. Fn2 (StrMap a) String (StrMap a)
 
 -- | Delete a key and value from a map
-delete :: forall a. String -> StrMap a -> StrMap a
+delete :: String -> StrMap ~> StrMap
 delete k = mutate (\s -> void $ SM.delete s k)
 
 -- | Delete a key and value from a map, returning the value
@@ -238,7 +238,7 @@ toArray = _collect Tuple
 foreign import keys :: forall a. StrMap a -> Array String
 
 -- | Get a list of the values in a map
-values :: forall a. StrMap a -> Array a
+values :: StrMap ~> Array
 values = _collect (\_ v -> v)
 
 -- | Compute the union of two maps, preferring the first map in the case of
