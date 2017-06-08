@@ -151,7 +151,7 @@ checkValid tree = length (nub (allHeights tree)) == one
   allHeights (Three left _ _ mid _ _ right) = map (\n -> n + one) (allHeights left <> allHeights mid <> allHeights right)
 
 -- | Look up a value for the specified key
-lookup :: forall k v. Ord k => k -> Map k v -> Maybe v
+lookup :: forall k. Ord k => k -> Map k ~> Maybe
 lookup k = go
   where
     comp :: k -> k -> Ordering
@@ -312,7 +312,7 @@ insert k v = down Nil
       ThreeRight a k1 v1 b k2 v2, KickUp c k' v' d -> up ctx (KickUp (Two a k1 v1 b) k2 v2 (Two c k' v' d))
 
 -- | Delete a key and its corresponding value from a map.
-delete :: forall k v. Ord k => k -> Map k v -> Map k v
+delete :: forall k. Ord k => k -> Map k ~> Map k
 delete k m = maybe m snd (pop k m)
 
 -- | Delete a key and its corresponding value from a map, returning the value
@@ -445,7 +445,7 @@ keys (Two left k _ right) = keys left <> pure k <> keys right
 keys (Three left k1 _ mid k2 _ right) = keys left <> pure k1 <> keys mid <> pure k2 <> keys right
 
 -- | Get a list of the values contained in a map
-values :: forall k v. Map k v -> List v
+values :: forall k. Map k ~> List
 values Leaf = Nil
 values (Two left _ v right) = values left <> pure v <> values right
 values (Three left _ v1 mid _ v2 right) = values left <> pure v1 <> values mid <> pure v2 <> values right
