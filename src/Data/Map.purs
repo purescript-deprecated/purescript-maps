@@ -16,6 +16,10 @@ module Data.Map
   , lookupGT
   , findMin
   , findMax
+  , fold
+  , foldM
+  , foldMap
+  , foldMaybe
   , foldSubmap
   , submap
   , fromFoldable
@@ -42,7 +46,9 @@ module Data.Map
 
 import Prelude
 import Data.Eq (class Eq1)
-import Data.Foldable (foldl, foldMap, foldr, class Foldable)
+import Data.Either (Either(..), either)
+import Data.Foldable (class Foldable)
+import Data.Foldable as F
 import Data.List (List(..), (:), length, nub)
 import Data.List.Lazy as LL
 import Data.Maybe (Maybe(..), maybe, isJust, fromMaybe)
@@ -90,9 +96,9 @@ instance functorMap :: Functor (Map k) where
   map f (Three left k1 v1 mid k2 v2 right) = Three (map f left) k1 (f v1) (map f mid) k2 (f v2) (map f right)
 
 instance foldableMap :: Foldable (Map k) where
-  foldl   f z m = foldl   f z (values m)
-  foldr   f z m = foldr   f z (values m)
-  foldMap f   m = foldMap f   (values m)
+  foldl   f z m = F.foldl f z (values m)
+  foldr   f z m = F.foldr f z (values m)
+  foldMap f   m = F.foldMap f (values m)
 
 instance traversableMap :: Traversable (Map k) where
   traverse f Leaf = pure Leaf
@@ -255,6 +261,73 @@ findMin :: forall k v. Map k v -> Maybe { key :: k, value :: v }
 findMin Leaf = Nothing
 findMin (Two left k1 v1 _) = Just $ fromMaybe { key: k1, value: v1 } $ findMin left
 findMin (Three left k1 v1 _ _ _ _) = Just $ fromMaybe { key: k1, value: v1 } $ findMin left
+
+-- | Fold the keys and values of a map
+fold :: forall k v a. (a -> k -> v -> a) -> a -> Map k v -> a
+fold f = go
+  where
+  go a Leaf = a
+  go a (Two left k1 v1 right) =
+    let
+      a2 = go a left
+      a3 = f a2 k1 v1
+    in
+      go a3 right
+  go a (Three left k1 v1 mid k2 v2 right) =
+    let
+      a2 = go a left
+      a3 = f a2 k1 v1
+      a4 = go a3 mid
+      a5 = f a4 k2 v2
+    in
+      go a5 right
+
+-- | Fold the keys and values of a map, accumulating values and effects in
+-- | some `Monad`.
+foldM :: forall k v m a. Monad m => (a -> k -> v -> m a) -> a -> Map k v -> m a
+foldM f = go
+  where
+  go a Leaf = pure a
+  go a (Two left k1 v1 right) = do
+    a2 <- go a left
+    a3 <- f a2 k1 v1
+    go a3 right
+  go a (Three left k1 v1 mid k2 v2 right) = do
+    a2 <- go a left
+    a3 <- f a2 k1 v1
+    a4 <- go a3 mid
+    a5 <- f a4 k2 v2
+    go a5 right
+
+-- | Fold the keys and values of a map, accumulating values using
+-- | some `Monoid`.
+foldMap :: forall k v a. Monoid a => (k -> v -> a) -> Map k v -> a
+foldMap f = fold (\a k v -> a <> f k v) mempty
+
+-- | Fold the keys and values of a map.
+-- |
+-- | This function allows the folding function to terminate the fold early,
+-- | using `Maybe`.
+foldMaybe :: forall k v a. (a -> k -> v -> Maybe a) -> a -> Map k v -> a
+foldMaybe f acc = either id id <<< go acc
+  where
+  go a Leaf = Right a
+  go a (Two left k1 v1 right) =
+    case go a left of
+      Right a2 -> case f a2 k1 v1 of
+        Just a3 -> go a3 right
+        Nothing -> Left a2
+      done -> done
+  go a (Three left k1 v1 mid k2 v2 right) =
+    case go a left of
+      Right a2 -> case f a2 k1 v1 of
+        Just a3 -> case go a3 mid of
+          Right a4 -> case f a4 k2 v2 of
+            Just a5 -> go a5 right
+            Nothing -> Left a4
+          done -> done
+        Nothing -> Left a2
+      done -> done
 
 -- | Fold over the entries of a given map where the key is between a lower and
 -- | an upper bound. Passing `Nothing` as either the lower or upper bound
@@ -508,12 +581,12 @@ update f k m = alter (maybe Nothing f) k m
 -- | Convert any foldable collection of key/value pairs to a map.
 -- | On key collision, later values take precedence over earlier ones.
 fromFoldable :: forall f k v. Ord k => Foldable f => f (Tuple k v) -> Map k v
-fromFoldable = foldl (\m (Tuple k v) -> insert k v m) empty
+fromFoldable = F.foldl (\m (Tuple k v) -> insert k v m) empty
 
 -- | Convert any foldable collection of key/value pairs to a map.
 -- | On key collision, the values are configurably combined.
 fromFoldableWith :: forall f k v. Ord k => Foldable f => (v -> v -> v) -> f (Tuple k v) -> Map k v
-fromFoldableWith f = foldl (\m (Tuple k v) -> alter (combine v) k m) empty where
+fromFoldableWith f = F.foldl (\m (Tuple k v) -> alter (combine v) k m) empty where
   combine v (Just v') = Just $ f v v'
   combine v Nothing = Just v
 
@@ -558,7 +631,7 @@ values (Three left _ v1 mid _ v2 right) = values left <> pure v1 <> values mid <
 -- | Compute the union of two maps, using the specified function
 -- | to combine values for duplicate keys.
 unionWith :: forall k v. Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
-unionWith f m1 m2 = foldl go m2 (toUnfoldable m1 :: List (Tuple k v))
+unionWith f m1 m2 = F.foldl go m2 (toUnfoldable m1 :: List (Tuple k v))
   where
   go m (Tuple k v) = alter (Just <<< maybe v (f v)) k m
 
@@ -569,7 +642,7 @@ union = unionWith const
 
 -- | Compute the union of a collection of maps
 unions :: forall k v f. Ord k => Foldable f => f (Map k v) -> Map k v
-unions = foldl union empty
+unions = F.foldl union empty
 
 -- | Test whether one map contains all of the keys and values contained in another map
 isSubmap :: forall k v. Ord k => Eq v => Map k v -> Map k v -> Boolean
