@@ -108,7 +108,7 @@ instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
   foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toUnfoldable m
   foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toUnfoldable m
 
-asList ∷ ∀ k v. List (Tuple k v) → List (Tuple k v)
+asList :: forall k v. List (Tuple k v) -> List (Tuple k v)
 asList = id
 
 instance traversableMap :: Traversable (Map k) where
