@@ -160,6 +160,10 @@ strMapTests = do
     quickCheck (M.lookup "1" nums == Just 2  <?> "invalid lookup - 1")
     quickCheck (M.lookup "2" nums == Nothing <?> "invalid lookup - 2")
 
+  log "fromRecord"
+  quickCheck (M.fromRecord {a: 1, b: 2, c: 3}
+              == M.fromFoldable [Tuple "a" 1, Tuple "b" 2, Tuple "c" 3])
+
   log "toUnfoldable . fromFoldable = id"
   quickCheck $ \arr -> let f x = M.toUnfoldable (M.fromFoldable x)
                        in f (f arr) == f (arr :: L.List (Tuple String Int)) <?> show arr

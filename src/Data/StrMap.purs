@@ -16,6 +16,7 @@ module Data.StrMap
   , toAscUnfoldable
   , fromFoldable
   , fromFoldableWith
+  , fromRecord
   , delete
   , pop
   , member
@@ -46,7 +47,6 @@ import Prelude
 
 import Control.Monad.Eff (Eff, runPure, foreachE)
 import Control.Monad.ST as ST
-
 import Data.Array as A
 import Data.Eq (class Eq1)
 import Data.Foldable (class Foldable, foldl, foldr, for_)
@@ -60,6 +60,7 @@ import Data.Traversable (class Traversable, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..), fst, uncurry)
 import Data.Unfoldable (class Unfoldable)
+import Type.Row.Homogeneous (class Homogeneous)
 
 -- | `StrMap a` represents a map from `String`s to values of type `a`.
 foreign import data StrMap :: Type -> Type
@@ -234,6 +235,12 @@ fromFoldableWith f l = pureST (do
   s <- SM.new
   for_ l (\(Tuple k v) -> runFn4 _lookupST v (f v) k s >>= SM.poke s k)
   pure s)
+
+-- | Create a map from a homogeneous record (all attributes have the same type).
+fromRecord :: forall r t. Homogeneous r t => Record r -> StrMap t
+fromRecord = fromRecordImpl
+
+foreign import fromRecordImpl :: forall r t. Record r -> StrMap t
 
 foreign import toArrayWithKey :: forall a b . (String -> a -> b) -> StrMap a -> Array b
 
