@@ -106,6 +106,10 @@ exports._lookupST = function (no, yes, k, m) {
   };
 };
 
+exports.fromRecordImpl = function(r) {
+  return r;
+};
+
 function toArrayWithKey(f) {
   return function (m) {
     var r = [];
