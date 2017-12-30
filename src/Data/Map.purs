@@ -466,7 +466,7 @@ pop k = down Nil
   comp = compare
 
   down :: List (TreeContext k v) -> Map k v -> Maybe (Tuple v (Map k v))
-  down = unsafePartial \ctx m -> case m of
+  down ctx = case _ of
     Leaf -> Nothing
     Two left k1 v1 right ->
       case right, comp k k1 of
@@ -492,28 +492,25 @@ pop k = down Nil
         _   , _ , _  -> down (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
 
   up :: List (TreeContext k v) -> Map k v -> Map k v
-  up = unsafePartial \ctxs tree ->
-    case ctxs of
-      Nil -> tree
-      Cons x ctx ->
-        case x, tree of
-          TwoLeft k1 v1 Leaf, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
-          TwoRight Leaf k1 v1, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
-          TwoLeft k1 v1 (Two m k2 v2 r), l -> up ctx (Three l k1 v1 m k2 v2 r)
-          TwoRight (Two l k1 v1 m) k2 v2, r -> up ctx (Three l k1 v1 m k2 v2 r)
-          TwoLeft k1 v1 (Three b k2 v2 c k3 v3 d), a -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
-          TwoRight (Three a k1 v1 b k2 v2 c) k3 v3, d -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
-          ThreeLeft k1 v1 Leaf k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeMiddle Leaf k1 v1 k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeRight Leaf k1 v1 Leaf k2 v2, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeLeft k1 v1 (Two b k2 v2 c) k3 v3 d, a -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
-          ThreeMiddle (Two a k1 v1 b) k2 v2 k3 v3 d, c -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
-          ThreeMiddle a k1 v1 k2 v2 (Two c k3 v3 d), b -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
-          ThreeRight a k1 v1 (Two b k2 v2 c) k3 v3, d -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
-          ThreeLeft k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4 e, a -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
-          ThreeMiddle (Three a k1 v1 b k2 v2 c) k3 v3 k4 v4 e, d -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
-          ThreeMiddle a k1 v1 k2 v2 (Three c k3 v3 d k4 v4 e), b -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
-          ThreeRight a k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4, e -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
+  up Nil tree = tree
+  up (Cons x ctx) tree = unsafePartial case x, tree of
+    TwoLeft k1 v1 Leaf, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
+    TwoRight Leaf k1 v1, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
+    TwoLeft k1 v1 (Two m k2 v2 r), l -> up ctx (Three l k1 v1 m k2 v2 r)
+    TwoRight (Two l k1 v1 m) k2 v2, r -> up ctx (Three l k1 v1 m k2 v2 r)
+    TwoLeft k1 v1 (Three b k2 v2 c k3 v3 d), a -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
+    TwoRight (Three a k1 v1 b k2 v2 c) k3 v3, d -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
+    ThreeLeft k1 v1 Leaf k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+    ThreeMiddle Leaf k1 v1 k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+    ThreeRight Leaf k1 v1 Leaf k2 v2, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+    ThreeLeft k1 v1 (Two b k2 v2 c) k3 v3 d, a -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
+    ThreeMiddle (Two a k1 v1 b) k2 v2 k3 v3 d, c -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
+    ThreeMiddle a k1 v1 k2 v2 (Two c k3 v3 d), b -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
+    ThreeRight a k1 v1 (Two b k2 v2 c) k3 v3, d -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
+    ThreeLeft k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4 e, a -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
+    ThreeMiddle (Three a k1 v1 b k2 v2 c) k3 v3 k4 v4 e, d -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
+    ThreeMiddle a k1 v1 k2 v2 (Three c k3 v3 d k4 v4 e), b -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
+    ThreeRight a k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4, e -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
 
   maxNode :: Map k v -> { key :: k, value :: v }
   maxNode = unsafePartial \m -> case m of
