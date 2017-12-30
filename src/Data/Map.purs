@@ -18,6 +18,8 @@ module Data.Map
   , findMax
   , deleteMin
   , deleteMax
+  , minView
+  , maxView
   , foldSubmap
   , submap
   , fromFoldable
@@ -57,7 +59,7 @@ import Data.Traversable (traverse, class Traversable)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(Tuple), snd, uncurry)
 import Data.Unfoldable (class Unfoldable, unfoldr)
-import Partial.Unsafe (unsafePartial)
+import Partial.Unsafe (unsafePartial, unsafeCrashWith)
 
 -- | `Map k v` represents maps from keys of type `k` to values of type `v`.
 data Map k v
@@ -298,28 +300,82 @@ findMin = go Nothing
 -- | Delete the pair with the least key. O(logn).
 -- |
 -- | Return an empty map if the map is empty.
-deleteMin :: forall k v. Ord k => Map k v -> Map k v
-deleteMin Leaf = Leaf
-deleteMin n = down Nil n
-  where
-  down :: List (TreeContext k v) -> Map k v -> Map k v
-  down = unsafePartial \ctx -> case _ of
-    Two left k v right ->
-      case left, right of
-           Leaf, Leaf -> deleteUp ctx Leaf
-           _   , _    -> down (Cons (TwoLeft k v right) ctx) left
-    Three left k1 v1 mid k2 v2 right ->
-      case left, mid, right of
-           Leaf, Leaf, Leaf -> fromZipper ctx (Two Leaf k2 v2 Leaf)
-           _   , _   , _    ->
-              down (Cons (ThreeLeft k1 v1 mid k2 v2 right) ctx) left
+deleteMin :: forall k. Ord k => Map k ~> Map k
+deleteMin = maybe Leaf _.strippedMap <<< minView
 
 -- | Delete the pair with the greatest key. O(logn).
 -- |
 -- | Return an empty map if the map is empty.
-deleteMax :: forall k v. Ord k => Map k v -> Map k v
-deleteMax Leaf = Leaf
-deleteMax n = removeMaxNode Nil n
+deleteMax :: forall k. Ord k => Map k ~> Map k
+deleteMax = maybe Leaf _.strippedMap <<< maxView
+
+-- | Retrieves the least key and the value corresponding to that key,
+-- | and the map stripped of that element. O(logn)
+-- |
+-- | Returns Nothing if the map is empty.
+minView
+  :: forall k v
+    . Ord k
+   => Map k v
+   -> Maybe { key :: k, value :: v, strippedMap :: Map k v}
+minView Leaf = Nothing
+minView m = Just $ down Nil m
+  where
+  down
+    :: List (TreeContext k v)
+    -> Map k v
+    -> { key :: k, value :: v, strippedMap :: Map k v}
+  down ctx = case _ of
+    Two left k v right ->
+      case left, right of
+           Leaf, Leaf -> { key: k, value: v, strippedMap: deleteUp ctx Leaf }
+           _   , _    -> down (Cons (TwoLeft k v right) ctx) left
+    Three left k1 v1 mid k2 v2 right ->
+      case left, mid, right of
+           Leaf, Leaf, Leaf ->
+             { key: k1
+             , value: v1
+             , strippedMap: fromZipper ctx (Two Leaf k2 v2 Leaf)
+             }
+           _   , _   , _    ->
+              down (Cons (ThreeLeft k1 v1 mid k2 v2 right) ctx) left
+    -- using instead of unsafePartial because of a TCO bug:
+    -- https://github.com/purescript/purescript/issues/3157
+    Leaf -> unsafeCrashWith "we met a leaf... this shouldn't happen"
+
+-- | Retrieves the greatest key and the value corresponding to that key,
+-- | and the map stripped of that element. O(logn)
+-- |
+-- | Returns Nothing if the map is empty.
+maxView
+  :: forall k v
+    . Ord k
+   => Map k v
+   -> Maybe { key :: k, value :: v, strippedMap :: Map k v}
+maxView Leaf = Nothing
+maxView n = Just $ down Nil n
+  where
+  down
+    :: List (TreeContext k v)
+    -> Map k v
+    -> { key :: k, value :: v, strippedMap :: Map k v}
+  down ctx = case _ of
+    Two left k v right ->
+      case left, right of
+           Leaf, Leaf -> { key: k, value: v, strippedMap: deleteUp ctx Leaf }
+           _   , _    -> down (Cons (TwoRight left k v) ctx) right
+    Three left k1 v1 mid k2 v2 right ->
+      case left, mid, right of
+           Leaf, Leaf, Leaf ->
+             { key: k2
+             , value: v2
+             , strippedMap: fromZipper ctx (Two Leaf k1 v1 Leaf)
+             }
+           _   , _   , _    ->
+              down (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
+    -- using instead of unsafePartial because of a TCO bug:
+    -- https://github.com/purescript/purescript/issues/3157
+    Leaf -> unsafeCrashWith "we met a leaf... this shouldn't happen"
 
 -- | Fold over the entries of a given map where the key is between a lower and
 -- | an upper bound. Passing `Nothing` as either the lower or upper bound
@@ -526,13 +582,13 @@ pop k = down Nil
     Three _ _ _ _ k' v Leaf -> { key: k', value: v }
     Three _ _ _ _ _ _ right -> maxNode right
 
-
-removeMaxNode :: forall k v. Ord k => List (TreeContext k v) -> Map k v -> Map k v
-removeMaxNode = unsafePartial \ctx -> case _ of
-  Two Leaf _ _ Leaf -> deleteUp ctx Leaf
-  Two left k' v right -> removeMaxNode (Cons (TwoRight left k' v) ctx) right
-  Three Leaf k1 v1 Leaf _ _ Leaf -> deleteUp (Cons (TwoRight Leaf k1 v1) ctx) Leaf
-  Three left k1 v1 mid k2 v2 right -> removeMaxNode (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
+  removeMaxNode :: List (TreeContext k v) -> Map k v -> Map k v
+  removeMaxNode = unsafePartial \ctx m ->
+    case m of
+      Two Leaf _ _ Leaf -> deleteUp ctx Leaf
+      Two left k' v right -> removeMaxNode (Cons (TwoRight left k' v) ctx) right
+      Three Leaf k1 v1 Leaf _ _ Leaf -> deleteUp (Cons (TwoRight Leaf k1 v1) ctx) Leaf
+      Three left k1 v1 mid k2 v2 right -> removeMaxNode (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
 
 deleteUp :: forall k v. Ord k => List (TreeContext k v) -> Map k v -> Map k v
 deleteUp = unsafePartial \ctxs tree ->
