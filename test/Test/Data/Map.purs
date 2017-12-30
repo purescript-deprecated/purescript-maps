@@ -9,7 +9,7 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
-import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
+import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy, tail, init)
 import Data.List.NonEmpty as NEL
 import Data.Map as M
 import Data.Map.Gen (genMap)
@@ -268,6 +268,14 @@ mapTests = do
   quickCheck $ \(TestMap m) -> case M.findMax (smallKeyToNumberMap m) of
     Nothing -> M.isEmpty m
     Just { key: k, value: v } -> M.lookup k m == Just v && all (_ <= k) (M.keys m)
+
+  log "deleteMin result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+    M.deleteMin m == maybe m M.fromFoldable (tail $ M.toAscUnfoldable m)
+
+  log "deleteMax result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+    M.deleteMax m == maybe m M.fromFoldable (init $ M.toAscUnfoldable m)
 
   log "mapWithKey is correct"
   quickCheck $ \(TestMap m :: TestMap String Int) -> let
