@@ -466,7 +466,7 @@ pop k = down Nil
   comp = compare
 
   down :: List (TreeContext k v) -> Map k v -> Maybe (Tuple v (Map k v))
-  down = unsafePartial \ctx m -> case m of
+  down ctx = case _ of
     Leaf -> Nothing
     Two left k1 v1 right ->
       case right, comp k k1 of
