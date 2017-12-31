@@ -16,6 +16,10 @@ module Data.Map
   , lookupGT
   , findMin
   , findMax
+  , deleteMin
+  , deleteMax
+  , minView
+  , maxView
   , foldSubmap
   , submap
   , fromFoldable
@@ -55,7 +59,7 @@ import Data.Traversable (traverse, class Traversable)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(Tuple), snd, uncurry)
 import Data.Unfoldable (class Unfoldable, unfoldr)
-import Partial.Unsafe (unsafePartial)
+import Partial.Unsafe (unsafePartial, unsafeCrashWith)
 
 -- | `Map k v` represents maps from keys of type `k` to values of type `v`.
 data Map k v
@@ -293,6 +297,86 @@ findMin = go Nothing
     go _   (Two left k1 v1 _) = go (Just { key: k1, value: v1 }) left
     go _   (Three left k1 v1 _ _ _ _) = go (Just { key: k1, value: v1 }) left
 
+-- | Delete the pair with the least key. O(logn).
+-- |
+-- | Return an empty map if the map is empty.
+deleteMin :: forall k. Ord k => Map k ~> Map k
+deleteMin = maybe Leaf _.strippedMap <<< minView
+
+-- | Delete the pair with the greatest key. O(logn).
+-- |
+-- | Return an empty map if the map is empty.
+deleteMax :: forall k. Ord k => Map k ~> Map k
+deleteMax = maybe Leaf _.strippedMap <<< maxView
+
+-- | Retrieves the least key and the value corresponding to that key,
+-- | and the map stripped of that element. O(logn)
+-- |
+-- | Returns Nothing if the map is empty.
+minView
+  :: forall k v
+    . Ord k
+   => Map k v
+   -> Maybe { key :: k, value :: v, strippedMap :: Map k v}
+minView Leaf = Nothing
+minView m = Just $ down Nil m
+  where
+  down
+    :: List (TreeContext k v)
+    -> Map k v
+    -> { key :: k, value :: v, strippedMap :: Map k v}
+  down ctx = case _ of
+    Two left k v right ->
+      case left, right of
+           Leaf, Leaf -> { key: k, value: v, strippedMap: deleteUp ctx Leaf }
+           _   , _    -> down (Cons (TwoLeft k v right) ctx) left
+    Three left k1 v1 mid k2 v2 right ->
+      case left, mid, right of
+           Leaf, Leaf, Leaf ->
+             { key: k1
+             , value: v1
+             , strippedMap: fromZipper ctx (Two Leaf k2 v2 Leaf)
+             }
+           _   , _   , _    ->
+              down (Cons (ThreeLeft k1 v1 mid k2 v2 right) ctx) left
+    -- using instead of unsafePartial because of a TCO bug:
+    -- https://github.com/purescript/purescript/issues/3157
+    Leaf -> unsafeCrashWith "we met a leaf... this shouldn't happen"
+
+-- | Retrieves the greatest key and the value corresponding to that key,
+-- | and the map stripped of that element. O(logn)
+-- |
+-- | Returns Nothing if the map is empty.
+maxView
+  :: forall k v
+    . Ord k
+   => Map k v
+   -> Maybe { key :: k, value :: v, strippedMap :: Map k v}
+maxView Leaf = Nothing
+maxView n = Just $ down Nil n
+  where
+  down
+    :: List (TreeContext k v)
+    -> Map k v
+    -> { key :: k, value :: v, strippedMap :: Map k v}
+  down ctx = case _ of
+    Two left k v right ->
+      case left, right of
+           Leaf, Leaf -> { key: k, value: v, strippedMap: deleteUp ctx Leaf }
+           _   , _    -> down (Cons (TwoRight left k v) ctx) right
+    Three left k1 v1 mid k2 v2 right ->
+      case left, mid, right of
+           Leaf, Leaf, Leaf ->
+             { key: k2
+             , value: v2
+             , strippedMap: fromZipper ctx (Two Leaf k1 v1 Leaf)
+             }
+           _   , _   , _    ->
+              down (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
+    -- using instead of unsafePartial because of a TCO bug:
+    -- https://github.com/purescript/purescript/issues/3157
+    Leaf -> unsafeCrashWith "we met a leaf... this shouldn't happen"
+
 -- | Fold over the entries of a given map where the key is between a lower and
 -- | an upper bound. Passing `Nothing` as either the lower or upper bound
 -- | argument means that the fold has no lower or upper bound, i.e. the fold
@@ -470,7 +554,7 @@ pop k = down Nil
     Leaf -> Nothing
     Two left k1 v1 right ->
       case right, comp k k1 of
-        Leaf, EQ -> Just (Tuple v1 (up ctx Leaf))
+        Leaf, EQ -> Just (Tuple v1 (deleteUp ctx Leaf))
         _   , EQ -> let max = maxNode left
                      in Just (Tuple v1 (removeMaxNode (Cons (TwoLeft max.key max.value right) ctx) left))
         _   , LT -> down (Cons (TwoLeft k1 v1 right) ctx) left
@@ -491,30 +575,6 @@ pop k = down Nil
         _   , GT, LT -> down (Cons (ThreeMiddle left k1 v1 k2 v2 right) ctx) mid
         _   , _ , _  -> down (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
 
-  up :: List (TreeContext k v) -> Map k v -> Map k v
-  up = unsafePartial \ctxs tree ->
-    case ctxs of
-      Nil -> tree
-      Cons x ctx ->
-        case x, tree of
-          TwoLeft k1 v1 Leaf, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
-          TwoRight Leaf k1 v1, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
-          TwoLeft k1 v1 (Two m k2 v2 r), l -> up ctx (Three l k1 v1 m k2 v2 r)
-          TwoRight (Two l k1 v1 m) k2 v2, r -> up ctx (Three l k1 v1 m k2 v2 r)
-          TwoLeft k1 v1 (Three b k2 v2 c k3 v3 d), a -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
-          TwoRight (Three a k1 v1 b k2 v2 c) k3 v3, d -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
-          ThreeLeft k1 v1 Leaf k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeMiddle Leaf k1 v1 k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeRight Leaf k1 v1 Leaf k2 v2, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
-          ThreeLeft k1 v1 (Two b k2 v2 c) k3 v3 d, a -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
-          ThreeMiddle (Two a k1 v1 b) k2 v2 k3 v3 d, c -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
-          ThreeMiddle a k1 v1 k2 v2 (Two c k3 v3 d), b -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
-          ThreeRight a k1 v1 (Two b k2 v2 c) k3 v3, d -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
-          ThreeLeft k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4 e, a -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
-          ThreeMiddle (Three a k1 v1 b k2 v2 c) k3 v3 k4 v4 e, d -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
-          ThreeMiddle a k1 v1 k2 v2 (Three c k3 v3 d k4 v4 e), b -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
-          ThreeRight a k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4, e -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
-
   maxNode :: Map k v -> { key :: k, value :: v }
   maxNode = unsafePartial \m -> case m of
     Two _ k' v Leaf -> { key: k', value: v }
@@ -522,14 +582,37 @@ pop k = down Nil
     Three _ _ _ _ k' v Leaf -> { key: k', value: v }
     Three _ _ _ _ _ _ right -> maxNode right
 
-
   removeMaxNode :: List (TreeContext k v) -> Map k v -> Map k v
   removeMaxNode = unsafePartial \ctx m ->
     case m of
-      Two Leaf _ _ Leaf -> up ctx Leaf
+      Two Leaf _ _ Leaf -> deleteUp ctx Leaf
       Two left k' v right -> removeMaxNode (Cons (TwoRight left k' v) ctx) right
-      Three Leaf k1 v1 Leaf _ _ Leaf -> up (Cons (TwoRight Leaf k1 v1) ctx) Leaf
+      Three Leaf k1 v1 Leaf _ _ Leaf -> deleteUp (Cons (TwoRight Leaf k1 v1) ctx) Leaf
       Three left k1 v1 mid k2 v2 right -> removeMaxNode (Cons (ThreeRight left k1 v1 mid k2 v2) ctx) right
+
+deleteUp :: forall k v. Ord k => List (TreeContext k v) -> Map k v -> Map k v
+deleteUp = unsafePartial \ctxs tree ->
+  case ctxs of
+    Nil -> tree
+    Cons x ctx ->
+      case x, tree of
+        TwoLeft k1 v1 Leaf, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
+        TwoRight Leaf k1 v1, Leaf -> fromZipper ctx (Two Leaf k1 v1 Leaf)
+        TwoLeft k1 v1 (Two m k2 v2 r), l -> deleteUp ctx (Three l k1 v1 m k2 v2 r)
+        TwoRight (Two l k1 v1 m) k2 v2, r -> deleteUp ctx (Three l k1 v1 m k2 v2 r)
+        TwoLeft k1 v1 (Three b k2 v2 c k3 v3 d), a -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
+        TwoRight (Three a k1 v1 b k2 v2 c) k3 v3, d -> fromZipper ctx (Two (Two a k1 v1 b) k2 v2 (Two c k3 v3 d))
+        ThreeLeft k1 v1 Leaf k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+        ThreeMiddle Leaf k1 v1 k2 v2 Leaf, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+        ThreeRight Leaf k1 v1 Leaf k2 v2, Leaf -> fromZipper ctx (Three Leaf k1 v1 Leaf k2 v2 Leaf)
+        ThreeLeft k1 v1 (Two b k2 v2 c) k3 v3 d, a -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
+        ThreeMiddle (Two a k1 v1 b) k2 v2 k3 v3 d, c -> fromZipper ctx (Two (Three a k1 v1 b k2 v2 c) k3 v3 d)
+        ThreeMiddle a k1 v1 k2 v2 (Two c k3 v3 d), b -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
+        ThreeRight a k1 v1 (Two b k2 v2 c) k3 v3, d -> fromZipper ctx (Two a k1 v1 (Three b k2 v2 c k3 v3 d))
+        ThreeLeft k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4 e, a -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
+        ThreeMiddle (Three a k1 v1 b k2 v2 c) k3 v3 k4 v4 e, d -> fromZipper ctx (Three (Two a k1 v1 b) k2 v2 (Two c k3 v3 d) k4 v4 e)
+        ThreeMiddle a k1 v1 k2 v2 (Three c k3 v3 d k4 v4 e), b -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
+        ThreeRight a k1 v1 (Three b k2 v2 c k3 v3 d) k4 v4, e -> fromZipper ctx (Three a k1 v1 (Two b k2 v2 c) k3 v3 (Two d k4 v4 e))
 
 
 -- | Insert the value, delete a value, or update a value for a key in a map

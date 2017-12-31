@@ -9,11 +9,11 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
-import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
+import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy, tail, init, uncons, unsnoc)
 import Data.List.NonEmpty as NEL
 import Data.Map as M
 import Data.Map.Gen (genMap)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe, isNothing)
 import Data.NonEmpty ((:|))
 import Data.Tuple (Tuple(..), fst, uncurry)
 import Partial.Unsafe (unsafePartial)
@@ -268,6 +268,30 @@ mapTests = do
   quickCheck $ \(TestMap m) -> case M.findMax (smallKeyToNumberMap m) of
     Nothing -> M.isEmpty m
     Just { key: k, value: v } -> M.lookup k m == Just v && all (_ <= k) (M.keys m)
+
+  log "deleteMin result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+    M.deleteMin m == maybe m M.fromFoldable (tail $ M.toAscUnfoldable m)
+
+  log "deleteMax result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+    M.deleteMax m == maybe m M.fromFoldable (init $ M.toAscUnfoldable m)
+
+  log "minView result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+      case uncons (M.toAscUnfoldable m) of
+           Nothing -> isNothing $ M.minView m
+           Just {head: (Tuple k v), tail} -> unsafePartial
+             let Just {key: minK, value: minV, strippedMap: sM} = M.minView m
+             in minK == k && minV == v && sM == (M.fromFoldable tail)
+
+  log "maxView result is correct"
+  quickCheck $ \(TestMap m :: TestMap String Int) ->
+      case unsnoc (M.toAscUnfoldable m) of
+           Nothing -> isNothing $ M.minView m
+           Just {last: (Tuple k v), init} -> unsafePartial
+             let Just {key: maxK, value: maxV, strippedMap: sM} = M.maxView m
+             in maxK == k && maxV == v && sM == (M.fromFoldable init)
 
   log "mapWithKey is correct"
   quickCheck $ \(TestMap m :: TestMap String Int) -> let
