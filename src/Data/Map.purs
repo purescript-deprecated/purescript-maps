@@ -22,8 +22,6 @@ module Data.Map
   , fromFoldableWith
   , toUnfoldable
   , toAscUnfoldable
-  , toAscUnfoldableKeys
-  , toAscUnfoldableValues
   , delete
   , pop
   , member
@@ -101,9 +99,9 @@ instance functorWithIndexMap :: FunctorWithIndex k (Map k) where
   mapWithIndex f (Three left k1 v1 mid k2 v2 right) = Three (mapWithIndex f left) k1 (f k1 v1) (mapWithIndex f mid) k2 (f k2 v2) (mapWithIndex f right)
 
 instance foldableMap :: Foldable (Map k) where
-  foldl   f z m = foldl   f z (values m)
-  foldr   f z m = foldr   f z (values m)
-  foldMap f   m = foldMap f   (values m)
+  foldl   f z m = foldl   f z ((values :: forall v. Map k v -> List v) m)
+  foldr   f z m = foldr   f z ((values :: forall v. Map k v -> List v) m)
+  foldMap f   m = foldMap f   ((values :: forall v. Map k v -> List v) m)
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
   foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
@@ -583,8 +581,8 @@ toAscUnfoldable m = unfoldr go (m : Nil) where
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
 
 -- | Convert a map to an unfoldable structure of keys in ascending order.
-toAscUnfoldableKeys :: forall f k v. Unfoldable f => Map k v -> f k
-toAscUnfoldableKeys m = unfoldr go (m : Nil) where
+keys :: forall f k v. Unfoldable f => Map k v -> f k
+keys m = unfoldr go (m : Nil) where
   go Nil = Nothing
   go (hd : tl) = case hd of
     Leaf -> go tl
@@ -597,13 +595,9 @@ toAscUnfoldableKeys m = unfoldr go (m : Nil) where
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
 
--- | Get a list of the keys contained in a map
-keys :: forall k v. Map k v -> List k
-keys = toAscUnfoldableKeys
-
 -- | Convert a map to an unfoldable structure of values in ascending order of their corresponding keys.
-toAscUnfoldableValues :: forall f k. Unfoldable f => Map k ~> f
-toAscUnfoldableValues m = unfoldr go (m : Nil) where
+values :: forall f k v. Unfoldable f => Map k v -> f v
+values m = unfoldr go (m : Nil) where
   go Nil = Nothing
   go (hd : tl) = case hd of
     Leaf -> go tl
@@ -615,10 +609,6 @@ toAscUnfoldableValues m = unfoldr go (m : Nil) where
       go $ left : singleton k v : right : tl
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
-
--- | Get a list of the values contained in a map
-values :: forall k. Map k ~> List
-values = toAscUnfoldableValues
 
 -- | Compute the union of two maps, using the specified function
 -- | to combine values for duplicate keys.

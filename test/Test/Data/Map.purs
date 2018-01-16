@@ -221,53 +221,55 @@ mapTests = do
 
   log "lookupLE result is correct"
   quickCheck $ \k (TestMap m) -> case M.lookupLE k (smallKeyToNumberMap m) of
-    Nothing -> all (_ > k) $ M.keys m
+    Nothing -> all (_ > k) (M.keys m :: Array SmallKey)
     Just { key: k1, value: v } -> let
       isCloserKey k2 = k1 < k2 && k2 < k
       isLTwhenEQexists = k1 < k && M.member k m
       in   k1 <= k
-        && all (not <<< isCloserKey) (M.keys m)
+      && all (not <<< isCloserKey) (M.keys m :: Array SmallKey)
         && not isLTwhenEQexists
         && M.lookup k1 m == Just v
 
   log "lookupGE result is correct"
   quickCheck $ \k (TestMap m) -> case M.lookupGE k (smallKeyToNumberMap m) of
-    Nothing -> all (_ < k) $ M.keys m
+    Nothing -> all (_ < k) (M.keys m :: Array SmallKey)
     Just { key: k1, value: v } -> let
       isCloserKey k2 = k < k2 && k2 < k1
       isGTwhenEQexists = k < k1 && M.member k m
       in   k1 >= k
-        && all (not <<< isCloserKey) (M.keys m)
+        && all (not <<< isCloserKey) (M.keys m :: Array SmallKey)
         && not isGTwhenEQexists
         && M.lookup k1 m == Just v
 
   log "lookupLT result is correct"
   quickCheck $ \k (TestMap m) -> case M.lookupLT k (smallKeyToNumberMap m) of
-    Nothing -> all (_ >= k) $ M.keys m
+    Nothing -> all (_ >= k) (M.keys m :: Array SmallKey)
     Just { key: k1, value: v } -> let
       isCloserKey k2 = k1 < k2 && k2 < k
       in   k1 < k
-        && all (not <<< isCloserKey) (M.keys m)
+      && all (not <<< isCloserKey) (M.keys m :: Array SmallKey)
         && M.lookup k1 m == Just v
 
   log "lookupGT result is correct"
   quickCheck $ \k (TestMap m) -> case M.lookupGT k (smallKeyToNumberMap m) of
-    Nothing -> all (_ <= k) $ M.keys m
+    Nothing -> all (_ <= k) (M.keys m :: Array SmallKey)
     Just { key: k1, value: v } -> let
       isCloserKey k2 = k < k2 && k2 < k1
       in   k1 > k
-        && all (not <<< isCloserKey) (M.keys m)
+        && all (not <<< isCloserKey) (M.keys m :: Array SmallKey)
         && M.lookup k1 m == Just v
 
   log "findMin result is correct"
   quickCheck $ \(TestMap m) -> case M.findMin (smallKeyToNumberMap m) of
     Nothing -> M.isEmpty m
-    Just { key: k, value: v } -> M.lookup k m == Just v && all (_ >= k) (M.keys m)
+    Just { key: k, value: v } ->
+      M.lookup k m == Just v && all (_ >= k) (M.keys m :: Array SmallKey)
 
   log "findMax result is correct"
   quickCheck $ \(TestMap m) -> case M.findMax (smallKeyToNumberMap m) of
     Nothing -> M.isEmpty m
-    Just { key: k, value: v } -> M.lookup k m == Just v && all (_ <= k) (M.keys m)
+    Just { key: k, value: v } ->
+      M.lookup k m == Just v && all (_ <= k) (M.keys m :: Array SmallKey)
 
   log "mapWithKey is correct"
   quickCheck $ \(TestMap m :: TestMap String Int) -> let
@@ -291,7 +293,7 @@ mapTests = do
 
   log "filterKeys keeps those keys for which predicate is true"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 A.all p (M.keys (M.filterKeys p s))
+                 A.all p (M.keys (M.filterKeys p s) :: Array String)
 
   log "filter gives submap"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
@@ -299,7 +301,7 @@ mapTests = do
 
   log "filter keeps those values for which predicate is true"
   quickCheck $ \(TestMap s :: TestMap String Int) p ->
-                 A.all p (M.values (M.filter p s))
+                 A.all p (M.values (M.filter p s) :: Array Int)
 
   log "submap with no bounds = id"
   quickCheck \(TestMap m :: TestMap SmallKey Int) ->
