@@ -22,6 +22,8 @@ module Data.Map
   , fromFoldableWith
   , toUnfoldable
   , toAscUnfoldable
+  , toAscUnfoldableKeys
+  , toAscUnfoldableValues
   , delete
   , pop
   , member
@@ -580,17 +582,43 @@ toAscUnfoldable m = unfoldr go (m : Nil) where
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
 
+-- | Convert a map to an unfoldable structure of keys in ascending order.
+toAscUnfoldableKeys :: forall f k v. Unfoldable f => Map k v -> f k
+toAscUnfoldableKeys m = unfoldr go (m : Nil) where
+  go Nil = Nothing
+  go (hd : tl) = case hd of
+    Leaf -> go tl
+    Two Leaf k _ Leaf ->
+      Just $ Tuple k tl
+    Two Leaf k _ right ->
+      Just $ Tuple k (right : tl)
+    Two left k v right ->
+      go $ left : singleton k v : right : tl
+    Three left k1 v1 mid k2 v2 right ->
+      go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+
 -- | Get a list of the keys contained in a map
 keys :: forall k v. Map k v -> List k
-keys Leaf = Nil
-keys (Two left k _ right) = keys left <> pure k <> keys right
-keys (Three left k1 _ mid k2 _ right) = keys left <> pure k1 <> keys mid <> pure k2 <> keys right
+keys = toAscUnfoldableKeys
+
+-- | Convert a map to an unfoldable structure of values in ascending order of their corresponding keys.
+toAscUnfoldableValues :: forall f k. Unfoldable f => Map k ~> f
+toAscUnfoldableValues m = unfoldr go (m : Nil) where
+  go Nil = Nothing
+  go (hd : tl) = case hd of
+    Leaf -> go tl
+    Two Leaf _ v Leaf ->
+      Just $ Tuple v tl
+    Two Leaf _ v right ->
+      Just $ Tuple v (right : tl)
+    Two left k v right ->
+      go $ left : singleton k v : right : tl
+    Three left k1 v1 mid k2 v2 right ->
+      go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
 
 -- | Get a list of the values contained in a map
-values :: forall k v. Map k v -> List v
-values Leaf = Nil
-values (Two left _ v right) = values left <> pure v <> values right
-values (Three left _ v1 mid _ v2 right) = values left <> pure v1 <> values mid <> pure v2 <> values right
+values :: forall k. Map k ~> List
+values = toAscUnfoldableValues
 
 -- | Compute the union of two maps, using the specified function
 -- | to combine values for duplicate keys.
