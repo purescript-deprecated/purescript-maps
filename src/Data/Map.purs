@@ -43,7 +43,7 @@ module Data.Map
 import Prelude
 
 import Data.Eq (class Eq1)
-import Data.Foldable (foldl, foldMap, foldr, class Foldable)
+import Data.Foldable (foldl, foldMap, foldr, foldMapDefaultL, class Foldable)
 import Data.FoldableWithIndex (class FoldableWithIndex)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.List (List(..), (:), length, nub)
@@ -99,9 +99,21 @@ instance functorWithIndexMap :: FunctorWithIndex k (Map k) where
   mapWithIndex f (Three left k1 v1 mid k2 v2 right) = Three (mapWithIndex f left) k1 (f k1 v1) (mapWithIndex f mid) k2 (f k2 v2) (mapWithIndex f right)
 
 instance foldableMap :: Foldable (Map k) where
-  foldl   f z m = foldl   f z (values m)
-  foldr   f z m = foldr   f z (values m)
-  foldMap f   m = foldMap f   (values m)
+  foldl f z m = go z (m : Nil)
+    where
+    go acc Nil = acc
+    go acc (hd : tl) = case hd of
+      Leaf -> go acc tl
+      Two Leaf _ v Leaf ->
+        go (f acc v) tl
+      Two Leaf _ v right ->
+        go (f acc v) (right : tl)
+      Two left k v right ->
+        go acc (left : singleton k v : right : tl)
+      Three left k1 v1 mid k2 v2 right ->
+        go acc (left : singleton k1 v1 : mid : singleton k2 v2 : right : tl)
+  foldr f z m = foldr f z (values m)
+  foldMap = foldMapDefaultL
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
   foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
