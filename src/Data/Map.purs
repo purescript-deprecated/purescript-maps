@@ -43,7 +43,7 @@ module Data.Map
 import Prelude
 
 import Data.Eq (class Eq1)
-import Data.Foldable (foldl, foldMapDefaultL, class Foldable)
+import Data.Foldable (foldl, foldr, foldMapDefaultL, class Foldable)
 import Data.FoldableWithIndex (class FoldableWithIndex, foldlWithIndex, foldrWithIndex, foldMapWithIndexDefaultL)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.List (List(..), (:), length, nub)
@@ -117,19 +117,7 @@ instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
         go acc (left : singleton k v : right : tl)
       Three left k1 v1 mid k2 v2 right ->
         go acc (left : singleton k1 v1 : mid : singleton k2 v2 : right : tl)
-  foldrWithIndex f z m = go (m : Nil)
-    where
-    go Nil = z
-    go (hd : tl) = case hd of
-      Leaf -> go tl
-      Two Leaf k v Leaf ->
-        f k v $ go tl
-      Two Leaf k v right ->
-        f k v $ go $ right : tl
-      Two left k v right ->
-        go $ left : singleton k v : right : tl
-      Three left k1 v1 mid k2 v2 right ->
-        go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+  foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toUnfoldable m
   foldMapWithIndex = foldMapWithIndexDefaultL
 
 asList :: forall k v. List (Tuple k v) -> List (Tuple k v)
