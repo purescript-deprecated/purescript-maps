@@ -43,8 +43,8 @@ module Data.Map
 import Prelude
 
 import Data.Eq (class Eq1)
-import Data.Foldable (foldl, foldMap, foldr, class Foldable)
-import Data.FoldableWithIndex (class FoldableWithIndex)
+import Data.Foldable (foldl, foldr, foldMapDefaultL, class Foldable)
+import Data.FoldableWithIndex (class FoldableWithIndex, foldlWithIndex, foldrWithIndex, foldMapWithIndexDefaultL)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.List (List(..), (:), length, nub)
 import Data.List.Lazy as LL
@@ -99,14 +99,26 @@ instance functorWithIndexMap :: FunctorWithIndex k (Map k) where
   mapWithIndex f (Three left k1 v1 mid k2 v2 right) = Three (mapWithIndex f left) k1 (f k1 v1) (mapWithIndex f mid) k2 (f k2 v2) (mapWithIndex f right)
 
 instance foldableMap :: Foldable (Map k) where
-  foldl   f z m = foldl   f z (values m)
-  foldr   f z m = foldr   f z (values m)
-  foldMap f   m = foldMap f   (values m)
+  foldl f = foldlWithIndex (const f)
+  foldr f = foldrWithIndex (const f)
+  foldMap = foldMapDefaultL
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
-  foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
+  foldlWithIndex f z m = go z (m : Nil)
+    where
+    go acc Nil = acc
+    go acc (hd : tl) = case hd of
+      Leaf -> go acc tl
+      Two Leaf k v Leaf ->
+        go (f k acc v) tl
+      Two Leaf k v right ->
+        go (f k acc v) (right : tl)
+      Two left k v right ->
+        go acc (left : singleton k v : right : tl)
+      Three left k1 v1 mid k2 v2 right ->
+        go acc (left : singleton k1 v1 : mid : singleton k2 v2 : right : tl)
   foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toUnfoldable m
-  foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toUnfoldable m
+  foldMapWithIndex = foldMapWithIndexDefaultL
 
 asList :: forall k v. List (Tuple k v) -> List (Tuple k v)
 asList = id
