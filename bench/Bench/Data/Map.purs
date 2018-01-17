@@ -1,13 +1,15 @@
 module Bench.Data.Map where
 
 import Prelude
+
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Performance.Minibench (bench, benchWith)
-
-import Data.Tuple (Tuple(..))
+import Data.Foldable (foldl)
+import Data.List (zipWith)
 import Data.List as L
 import Data.Map as M
+import Data.Tuple (Tuple(..))
+import Performance.Minibench (bench, benchWith)
 
 benchMap :: Eff (console :: CONSOLE) Unit
 benchMap = do
@@ -21,15 +23,22 @@ benchMap = do
   log "------------"
   benchFromFoldable
 
+  log ""
+
+  log "foldl"
+  log "------------"
+  benchFoldl
+
   where
 
+  nats = L.range 0 999999
+  natPairs = zipWith Tuple nats nats
+  singletonMap = M.singleton 0 0
+  smallMap = M.fromFoldable $ L.take 100 natPairs
+  midMap = M.fromFoldable $ L.take 10000 natPairs
+  bigMap = M.fromFoldable $ natPairs
+
   benchSize = do
-    let nats = L.range 0 999999
-        natPairs = (flip Tuple) unit <$> nats
-        singletonMap = M.singleton 0 unit
-        smallMap = M.fromFoldable $ L.take 100 natPairs
-        midMap = M.fromFoldable $ L.take 10000 natPairs
-        bigMap = M.fromFoldable $ natPairs
 
     log "size: singleton map"
     bench \_ -> M.size singletonMap
@@ -53,3 +62,19 @@ benchMap = do
 
     log $ "fromFoldable (" <> show (L.length natPairs) <> ")"
     benchWith 10 \_ -> M.fromFoldable natPairs
+
+  benchFoldl = do
+    let sum = foldl (+) 0
+
+    log "foldl: singleton map"
+    bench \_ -> sum singletonMap
+
+    log $ "foldl: small map (" <> show (M.size smallMap) <> ")"
+    bench \_ -> sum smallMap
+
+    log $ "foldl: midsize map (" <> show (M.size midMap) <> ")"
+    benchWith 100 \_ -> sum midMap
+
+    log $ "foldl: big map (" <> show (M.size bigMap) <> ")"
+    benchWith 10  \_ -> sum bigMap
+
