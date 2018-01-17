@@ -4,7 +4,7 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, foldr)
 import Data.List (zipWith)
 import Data.List as L
 import Data.Map as M
@@ -28,6 +28,10 @@ benchMap = do
   log "foldl"
   log "------------"
   benchFoldl
+
+  log "foldr"
+  log "------------"
+  benchFoldr
 
   where
 
@@ -78,3 +82,17 @@ benchMap = do
     log $ "foldl: big map (" <> show (M.size bigMap) <> ")"
     benchWith 10  \_ -> sum bigMap
 
+  benchFoldr = do
+    let sum = foldr (+) 0
+
+    log "foldr: singleton map"
+    bench \_ -> sum singletonMap
+
+    log $ "foldr: small map (" <> show (M.size smallMap) <> ")"
+    bench \_ -> sum smallMap
+
+    log $ "foldr: midsize map (" <> show (M.size midMap) <> ")"
+    benchWith 100 \_ -> sum midMap
+
+    log $ "foldr: big map (" <> show (M.size bigMap) <> ")"
+    benchWith 10  \_ -> sum bigMap
