@@ -21,6 +21,7 @@ module Data.Map
   , fromFoldable
   , fromFoldableWith
   , toUnfoldable
+  , unsafeToUnfoldable
   , toAscUnfoldable
   , delete
   , pop
@@ -65,7 +66,7 @@ data Map k v
 
 -- Internal use
 toAscArray :: forall k v. Map k v -> Array (Tuple k v)
-toAscArray = toAscUnfoldable
+toAscArray = toUnfoldable
 
 instance eq1Map :: Eq k => Eq1 (Map k) where
   eq1 = eq
@@ -554,20 +555,9 @@ fromFoldableWith f = foldl (\m (Tuple k v) -> alter (combine v) k m) empty where
   combine v (Just v') = Just $ f v v'
   combine v Nothing = Just v
 
--- | Convert a map to an unfoldable structure of key/value pairs
+-- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
 toUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
 toUnfoldable m = unfoldr go (m : Nil) where
-  go Nil = Nothing
-  go (hd : tl) = case hd of
-    Leaf -> go tl
-    Two left k v right ->
-      Just $ Tuple (Tuple k v) (left : right : tl)
-    Three left k1 v1 mid k2 v2 right ->
-      Just $ Tuple (Tuple k1 v1) (singleton k2 v2 : left : mid : right : tl)
-
--- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
-toAscUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
-toAscUnfoldable m = unfoldr go (m : Nil) where
   go Nil = Nothing
   go (hd : tl) = case hd of
     Leaf -> go tl
@@ -579,6 +569,31 @@ toAscUnfoldable m = unfoldr go (m : Nil) where
       go $ left : singleton k v : right : tl
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+
+-- | Convert a map to an unfoldable structure of key/value pairs
+--
+-- While this traversal is up to 10% faster in benchmarks than `toUnfoldable`,
+-- it leaks the underlying map stucture, making it only suitable for applications
+-- where order is irrelevant.
+--
+-- If you are unsure, use `toUnfoldable`
+unsafeToUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
+unsafeToUnfoldable m = unfoldr go (m : Nil) where
+  go Nil = Nothing
+  go (hd : tl) = case hd of
+    Leaf -> go tl
+    Two left k v right ->
+      Just $ Tuple (Tuple k v) (left : right : tl)
+    Three left k1 v1 mid k2 v2 right ->
+      Just $ Tuple (Tuple k1 v1) (singleton k2 v2 : left : mid : right : tl)
+
+-- | Deprecated in favor of `toUnfoldable,` which now also has ascending key order.
+toAscUnfoldable
+  :: forall f k v
+   . Warn "Map.toAscUnfoldable is deprecated. Use toUnfoldable."
+  => Unfoldable f
+  => Map k v -> f (Tuple k v)
+toAscUnfoldable = toUnfoldable
 
 -- | Get a list of the keys contained in a map
 keys :: forall k v. Map k v -> List k
