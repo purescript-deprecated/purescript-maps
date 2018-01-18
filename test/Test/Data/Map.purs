@@ -15,7 +15,7 @@ import Data.Map as M
 import Data.Map.Gen (genMap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.NonEmpty ((:|))
-import Data.Tuple (Tuple(..), fst, uncurry)
+import Data.Tuple (Tuple(..), fst, snd, uncurry)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck ((<?>), (===), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -180,6 +180,15 @@ mapTests = do
     let list = M.toUnfoldable (m :: M.Map SmallKey Int)
         ascList = M.toAscUnfoldable m
     in ascList === sortBy (compare `on` fst) list
+
+  log "keys output is sorted"
+  quickCheck $ \(TestMap (m :: M.Map Int Int)) ->
+    let ks = M.keys m
+    in ks == sort ks
+
+  log "values output is sorted by associated key"
+  quickCheck $ \(TestMap (m :: M.Map Int Int)) ->
+    M.values m == (snd <$> sortBy (compare `on` fst) (M.toUnfoldable m))
 
   log "Lookup from union"
   quickCheck $ \(TestMap m1) (TestMap m2) k ->
