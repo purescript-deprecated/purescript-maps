@@ -565,50 +565,35 @@ toUnfoldable m = unfoldr go (m : Nil) where
     Three left k1 v1 mid k2 v2 right ->
       Just $ Tuple (Tuple k1 v1) (singleton k2 v2 : left : mid : right : tl)
 
--- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
-toAscUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
-toAscUnfoldable m = unfoldr go (m : Nil) where
+-- | Internal, used for the various functions that produce Unfoldables.
+toAscUnfoldableWith
+  :: forall f k v t
+   . Unfoldable f
+  => (k -> v -> t) -> Map k v -> f t
+toAscUnfoldableWith f m = unfoldr go (m : Nil) where
   go Nil = Nothing
   go (hd : tl) = case hd of
     Leaf -> go tl
     Two Leaf k v Leaf ->
-      Just $ Tuple (Tuple k v) tl
+      Just $ Tuple (f k v) tl
     Two Leaf k v right ->
-      Just $ Tuple (Tuple k v) (right : tl)
+      Just $ Tuple (f k v) (right : tl)
     Two left k v right ->
       go $ left : singleton k v : right : tl
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+
+-- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
+toAscUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
+toAscUnfoldable = toAscUnfoldableWith Tuple
 
 -- | Convert a map to an unfoldable structure of keys in ascending order.
 keys :: forall f k v. Unfoldable f => Map k v -> f k
-keys m = unfoldr go (m : Nil) where
-  go Nil = Nothing
-  go (hd : tl) = case hd of
-    Leaf -> go tl
-    Two Leaf k _ Leaf ->
-      Just $ Tuple k tl
-    Two Leaf k _ right ->
-      Just $ Tuple k (right : tl)
-    Two left k v right ->
-      go $ left : singleton k v : right : tl
-    Three left k1 v1 mid k2 v2 right ->
-      go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+keys = toAscUnfoldableWith const
 
 -- | Convert a map to an unfoldable structure of values in ascending order of their corresponding keys.
 values :: forall f k v. Unfoldable f => Map k v -> f v
-values m = unfoldr go (m : Nil) where
-  go Nil = Nothing
-  go (hd : tl) = case hd of
-    Leaf -> go tl
-    Two Leaf _ v Leaf ->
-      Just $ Tuple v tl
-    Two Leaf _ v right ->
-      Just $ Tuple v (right : tl)
-    Two left k v right ->
-      go $ left : singleton k v : right : tl
-    Three left k1 v1 mid k2 v2 right ->
-      go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
+values = toAscUnfoldableWith (flip const)
 
 -- | Compute the union of two maps, using the specified function
 -- | to combine values for duplicate keys.
