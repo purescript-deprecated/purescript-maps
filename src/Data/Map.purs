@@ -99,9 +99,9 @@ instance functorWithIndexMap :: FunctorWithIndex k (Map k) where
   mapWithIndex f (Three left k1 v1 mid k2 v2 right) = Three (mapWithIndex f left) k1 (f k1 v1) (mapWithIndex f mid) k2 (f k2 v2) (mapWithIndex f right)
 
 instance foldableMap :: Foldable (Map k) where
-  foldl   f z m = foldl   f z (values m)
-  foldr   f z m = foldr   f z (values m)
-  foldMap f   m = foldMap f   (values m)
+  foldl   f z m = foldl   f z ((values :: forall v. Map k v -> List v) m)
+  foldr   f z m = foldr   f z ((values :: forall v. Map k v -> List v) m)
+  foldMap f   m = foldMap f   ((values :: forall v. Map k v -> List v) m)
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
   foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
@@ -565,32 +565,35 @@ toUnfoldable m = unfoldr go (m : Nil) where
     Three left k1 v1 mid k2 v2 right ->
       Just $ Tuple (Tuple k1 v1) (singleton k2 v2 : left : mid : right : tl)
 
--- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
-toAscUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
-toAscUnfoldable m = unfoldr go (m : Nil) where
+-- | Internal, used for the various functions that produce Unfoldables.
+toAscUnfoldableWith
+  :: forall f k v t
+   . Unfoldable f
+  => (k -> v -> t) -> Map k v -> f t
+toAscUnfoldableWith f m = unfoldr go (m : Nil) where
   go Nil = Nothing
   go (hd : tl) = case hd of
     Leaf -> go tl
     Two Leaf k v Leaf ->
-      Just $ Tuple (Tuple k v) tl
+      Just $ Tuple (f k v) tl
     Two Leaf k v right ->
-      Just $ Tuple (Tuple k v) (right : tl)
+      Just $ Tuple (f k v) (right : tl)
     Two left k v right ->
       go $ left : singleton k v : right : tl
     Three left k1 v1 mid k2 v2 right ->
       go $ left : singleton k1 v1 : mid : singleton k2 v2 : right : tl
 
--- | Get a list of the keys contained in a map
-keys :: forall k v. Map k v -> List k
-keys Leaf = Nil
-keys (Two left k _ right) = keys left <> pure k <> keys right
-keys (Three left k1 _ mid k2 _ right) = keys left <> pure k1 <> keys mid <> pure k2 <> keys right
+-- | Convert a map to an unfoldable structure of key/value pairs where the keys are in ascending order
+toAscUnfoldable :: forall f k v. Unfoldable f => Map k v -> f (Tuple k v)
+toAscUnfoldable = toAscUnfoldableWith Tuple
 
--- | Get a list of the values contained in a map
-values :: forall k v. Map k v -> List v
-values Leaf = Nil
-values (Two left _ v right) = values left <> pure v <> values right
-values (Three left _ v1 mid _ v2 right) = values left <> pure v1 <> values mid <> pure v2 <> values right
+-- | Convert a map to an unfoldable structure of keys in ascending order.
+keys :: forall f k v. Unfoldable f => Map k v -> f k
+keys = toAscUnfoldableWith const
+
+-- | Convert a map to an unfoldable structure of values in ascending order of their corresponding keys.
+values :: forall f k v. Unfoldable f => Map k v -> f v
+values = toAscUnfoldableWith (flip const)
 
 -- | Compute the union of two maps, using the specified function
 -- | to combine values for duplicate keys.

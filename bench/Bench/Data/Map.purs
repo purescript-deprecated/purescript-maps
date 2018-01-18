@@ -17,20 +17,32 @@ benchMap = do
 
   log ""
 
+  log "keys"
+  log "------------"
+  benchKeys
+
+  log ""
+
+  log "values"
+  log "------------"
+  benchValues
+
+  log ""
+
   log "fromFoldable"
   log "------------"
   benchFromFoldable
 
   where
 
-  benchSize = do
-    let nats = L.range 0 999999
-        natPairs = (flip Tuple) unit <$> nats
-        singletonMap = M.singleton 0 unit
-        smallMap = M.fromFoldable $ L.take 100 natPairs
-        midMap = M.fromFoldable $ L.take 10000 natPairs
-        bigMap = M.fromFoldable $ natPairs
+  nats = L.range 0 999999
+  natPairs = (flip Tuple) unit <$> nats
+  singletonMap = M.singleton 0 unit
+  smallMap = M.fromFoldable $ L.take 100 natPairs
+  midMap = M.fromFoldable $ L.take 10000 natPairs
+  bigMap = M.fromFoldable $ natPairs
 
+  benchSize = do
     log "size: singleton map"
     bench \_ -> M.size singletonMap
 
@@ -42,6 +54,38 @@ benchMap = do
 
     log $ "size: big map (" <> show (M.size bigMap) <> ")"
     benchWith 10  \_ -> M.size bigMap
+
+  benchKeys = do
+    let keys :: forall k v. M.Map k v -> L.List k
+        keys = M.keys
+
+    log "keys: singleton map"
+    bench \_ -> keys singletonMap
+
+    log $ "keys: small map (" <> show (M.size smallMap) <> ")"
+    bench \_ -> keys smallMap
+
+    log $ "keys: midsize map (" <> show (M.size midMap) <> ")"
+    benchWith 100 \_ -> keys midMap
+
+    log $ "keys: big map (" <> show (M.size bigMap) <> ")"
+    benchWith 10  \_ -> keys bigMap
+
+  benchValues = do
+    let values :: forall k v. M.Map k v -> L.List v
+        values = M.values
+
+    log "values: singleton map"
+    bench \_ -> values singletonMap
+
+    log $ "values: small map (" <> show (M.size smallMap) <> ")"
+    bench \_ -> values smallMap
+
+    log $ "values: midsize map (" <> show (M.size midMap) <> ")"
+    benchWith 100 \_ -> values midMap
+
+    log $ "values: big map (" <> show (M.size bigMap) <> ")"
+    benchWith 10  \_ -> values bigMap
 
   benchFromFoldable = do
     let natStrs = show <$> L.range 0 99999
