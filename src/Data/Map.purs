@@ -46,6 +46,7 @@ import Data.Eq (class Eq1)
 import Data.Foldable (foldl, foldMap, foldr, class Foldable)
 import Data.FoldableWithIndex (class FoldableWithIndex)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
+import Data.Generic (class Generic)
 import Data.List (List(..), (:), length, nub)
 import Data.List.Lazy as LL
 import Data.Maybe (Maybe(..), maybe, isJust, fromMaybe)
@@ -66,6 +67,8 @@ data Map k v
 -- Internal use
 toAscArray :: forall k v. Map k v -> Array (Tuple k v)
 toAscArray = toAscUnfoldable
+
+derive instance genericMap :: (Generic k, Generic v) => Generic (Map k v)
 
 instance eq1Map :: Eq k => Eq1 (Map k) where
   eq1 = eq
