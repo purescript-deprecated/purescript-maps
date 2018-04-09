@@ -104,9 +104,9 @@ instance foldableMap :: Foldable (Map k) where
   foldMap f   m = foldMap f   (values m)
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
-  foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
-  foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toUnfoldable m
-  foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toUnfoldable m
+  foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toAscUnfoldable m
+  foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toAscUnfoldable m
+  foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toAscUnfoldable m
 
 asList :: forall k v. List (Tuple k v) -> List (Tuple k v)
 asList = id
