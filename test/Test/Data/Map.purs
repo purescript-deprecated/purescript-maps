@@ -9,6 +9,7 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
 import Data.Foldable (foldl, for_, all)
 import Data.Function (on)
+import Data.Int (even)
 import Data.List (List(Cons), groupBy, length, nubBy, singleton, sort, sortBy)
 import Data.List.NonEmpty as NEL
 import Data.Map as M
@@ -333,3 +334,37 @@ mapTests = do
        <> ", mmin: " <> show mmin
        <> ", mmax: " <> show mmax
        <> ", key: " <> show key
+
+  log "`mapMaybe Just` is `id`"
+  quickCheck \(TestMap m :: TestMap String Int) ->
+    M.mapMaybe Just m === m
+
+  log "deleting with `mapMaybe` works"
+  quickCheck \(TestMap m :: TestMap String Int) ->
+    M.mapMaybe (const Nothing) m === (M.empty :: M.Map String Int)
+
+  log "`mapMaybe` generalizes `filter`"
+  quickCheck \(TestMap m :: TestMap Int Int) ->
+    let justIfTrue b a = if b then Just a else Nothing in
+    M.mapMaybe (\n -> justIfTrue (even n) n) m == M.filter even m
+
+  log "`mapKeysMaybe Just` is `id`"
+  quickCheck \(TestMap m :: TestMap String Int) ->
+    M.mapKeysMaybe Just m === m
+
+  log "deleting with `mapKeysMaybe` works"
+  quickCheck \(TestMap m :: TestMap String Int) ->
+    M.mapKeysMaybe (const Nothing) m === (M.empty :: M.Map String Int)
+
+  log "`mapKeysMaybe` generalizes `filterKeys`"
+  quickCheck \(TestMap m :: TestMap Int Int) ->
+    let justIfTrue b a = if b then Just a else Nothing in
+    M.mapKeysMaybe (\n -> justIfTrue (even n) n) m == M.filterKeys even m
+
+  log "`mapKeysWith` is well-ordered"
+  quickCheck \(TestMap m :: TestMap Int Int) ->
+    unit `M.lookup` M.mapKeysWith (\l r -> l) (const unit) m === (\r -> r.value) <$> M.findMax m
+
+  log "`mapKeysWith` generalizes `mapKeys`"
+  quickCheck \(TestMap m :: TestMap Int Int) ->
+    M.mapKeysWith const (const unit) m === M.mapKeys (const unit) m
