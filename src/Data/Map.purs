@@ -38,13 +38,18 @@ module Data.Map
   , filterWithKey
   , filterKeys
   , filter
+  , mapMaybe
+  , mapMaybeWithKey
+  , mapKeys
+  , mapKeysMaybe
+  , mapKeysWith
   ) where
 
 import Prelude
 
 import Data.Eq (class Eq1)
 import Data.Foldable (foldl, foldMap, foldr, class Foldable)
-import Data.FoldableWithIndex (class FoldableWithIndex)
+import Data.FoldableWithIndex (class FoldableWithIndex, foldlWithIndex)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.List (List(..), (:), length, nub)
 import Data.List.Lazy as LL
@@ -104,9 +109,9 @@ instance foldableMap :: Foldable (Map k) where
   foldMap f   m = foldMap f   (values m)
 
 instance foldableWithIndexMap :: FoldableWithIndex k (Map k) where
-  foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toUnfoldable m
-  foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toUnfoldable m
-  foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toUnfoldable m
+  foldlWithIndex f z m = foldl (uncurry <<< (flip f)) z $ asList $ toAscUnfoldable m
+  foldrWithIndex f z m = foldr (uncurry f) z $ asList $ toAscUnfoldable m
+  foldMapWithIndex f m = foldMap (uncurry f) $ asList $ toAscUnfoldable m
 
 asList :: forall k v. List (Tuple k v) -> List (Tuple k v)
 asList = id
@@ -640,3 +645,29 @@ filterKeys predicate = filterWithKey $ const <<< predicate
 -- | on the value fails to hold.
 filter :: forall k v. Ord k => (v -> Boolean) -> Map k v -> Map k v
 filter predicate = filterWithKey $ const predicate
+
+mapMaybe :: forall k v u. Ord k => (v -> Maybe u) -> Map k v -> Map k u
+mapMaybe f = mapMaybeWithKey (const f)
+
+mapMaybeWithKey :: forall k v u. Ord k => (k -> v -> Maybe u) -> Map k v -> Map k u
+mapMaybeWithKey f m = foldlWithIndex f' mempty m
+  where
+    f' k acc v = maybe acc (flip (insert k) acc) $ f k v
+
+mapKeys :: forall j k v. Ord j => Ord k => (k -> j) -> Map k v -> Map j v
+mapKeys f = mapKeysMaybeWithValueWith (Just <<< f) (\k v _ -> Just (Tuple (f k) v))
+
+mapKeysMaybe :: forall j k v. Ord j => Ord k => (k -> Maybe j) -> Map k v -> Map j v
+mapKeysMaybe f = mapKeysMaybeWithValueWith f (\k v _ -> (_ `Tuple` v) <$> f k)
+
+-- | The value at the greater of the two original keys is used as the first argument to c.
+mapKeysWith :: forall j k v. Ord j => Ord k => (v -> v -> v) -> (k -> j) -> Map k v -> Map j v
+mapKeysWith f g = mapKeysMaybeWithValueWith (Just <<< g) h
+  where
+    h k v (Just v') = Just (Tuple (g k) (f v v'))
+    h k v Nothing = Just (Tuple (g k) v)
+
+mapKeysMaybeWithValueWith :: forall j k v. Ord j => Ord k => (k -> Maybe j) -> (k -> v -> Maybe v -> Maybe (Tuple j v)) -> Map k v -> Map j v
+mapKeysMaybeWithValueWith f g m = foldlWithIndex h mempty m
+  where
+    h k acc v = maybe acc (flip (uncurry insert) acc) $ g k v <<< (flip lookup acc) =<< f k
