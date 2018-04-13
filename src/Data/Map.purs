@@ -1,43 +1,72 @@
 -- | This module defines a type of maps as balanced 2-3 trees, based on
 -- | <http://www.cs.princeton.edu/~dpw/courses/cos326-12/ass/2-3-trees.pdf>
+-- |
+-- | Quick reference:
+-- | 
+-- | ```purescript
+-- | > import Data.Map as Map
+-- | > example = Map.fromFoldable [Tuple "key" "val"]
+-- | > Map.lookup "key" example   -- (Just "val")
+-- | > Map.insert "key" "new value" example
+-- | > Map.delete "key" example
+-- | ```
 
 module Data.Map
   ( Map
-  , showTree
+  -- creation  
   , empty
-  , isEmpty
   , singleton
-  , checkValid
-  , insert
+  , fromFoldable
+  , fromFoldableWith
+
+  -- common ops
   , lookup
+  , insert
+  , delete
+
+  -- queries
+  , member
+  , size
+  , isEmpty
+
+  -- manipulation of keys and values
+  , keys
+  , values
+  , mapWithKey
+
+  -- less common
+  , update
+  , alter
+  , pop
+    
+  -- setlike
+  , union
+  , unionWith
+  , unions
+  , isSubmap
+
+  -- filters
+  , filter
+  , filterWithKey
+  , filterKeys
+
+  -- taking advantage of Ord
   , lookupLE
   , lookupLT
   , lookupGE
   , lookupGT
   , findMin
   , findMax
-  , foldSubmap
   , submap
-  , fromFoldable
-  , fromFoldableWith
+  , foldSubmap
+
+  -- Unfoldable
   , toUnfoldable
   , toAscUnfoldable
-  , delete
-  , pop
-  , member
-  , alter
-  , update
-  , keys
-  , values
-  , union
-  , unionWith
-  , unions
-  , isSubmap
-  , size
-  , mapWithKey
-  , filterWithKey
-  , filterKeys
-  , filter
+
+  -- utils
+  , showTree
+  , checkValid
   ) where
 
 import Prelude
