@@ -15,7 +15,7 @@ exports._copyEff = function (m) {
 exports.empty = {};
 
 exports.runST = function (f) {
-  return f;
+  return f();
 };
 
 exports._fmapStrMap = function (m0, f) {
