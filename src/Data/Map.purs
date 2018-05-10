@@ -32,6 +32,7 @@ module Data.Map
   , union
   , unionWith
   , unions
+  , unionsWith
   , isSubmap
   , size
   , mapWithKey
