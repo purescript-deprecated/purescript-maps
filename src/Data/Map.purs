@@ -32,6 +32,7 @@ module Data.Map
   , union
   , unionWith
   , unions
+  , unionsWith
   , isSubmap
   , size
   , mapWithKey
@@ -607,6 +608,9 @@ union = unionWith const
 -- | Compute the union of a collection of maps
 unions :: forall k v f. Ord k => Foldable f => f (Map k v) -> Map k v
 unions = foldl union empty
+
+unionsWith :: forall k v f. Ord k => Foldable f => (v -> v -> v) -> f (Map k v) -> Map k v
+unionsWith f = foldl (unionWith f) empty
 
 -- | Test whether one map contains all of the keys and values contained in another map
 isSubmap :: forall k v. Ord k => Eq v => Map k v -> Map k v -> Boolean

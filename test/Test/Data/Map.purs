@@ -23,6 +23,9 @@ import Test.QuickCheck.Gen (elements, oneOf)
 
 newtype TestMap k v = TestMap (M.Map k v)
 
+unwrap :: forall k v. TestMap k v -> M.Map k v
+unwrap (TestMap m) = m
+
 instance arbTestMap :: (Eq k, Ord k, Arbitrary k, Arbitrary v) => Arbitrary (TestMap k v) where
   arbitrary = TestMap <$> genMap arbitrary arbitrary
 
@@ -213,6 +216,26 @@ mapTests = do
           Just v | in1        -> Just v == v1
           Just v              -> Just v == v2
           Nothing             -> not (in1 || in2)
+
+  log "unionsWith"
+  for_ [Tuple (+) 0, Tuple (*) 1] $ \(Tuple op ident) ->
+    quickCheck $ \(testMaps :: Array (TestMap SmallKey Int)) k ->
+      let testMaps' = unwrap <$> testMaps
+          u = M.unionsWith op testMaps'
+      in case M.lookup k u of
+           Nothing -> A.all (not <<< M.member k) testMaps'
+           Just v -> (v == _) <<< A.foldl op ident <<< map (fromMaybe ident <<< M.lookup k) $ testMaps'
+
+  log "unionsWith argument order"
+  quickCheck $ \(testMaps :: Array (TestMap SmallKey Int)) k ->
+    let testMaps' = unwrap <$> testMaps
+        u = M.unionsWith (-) testMaps'
+    in case M.lookup k u of
+         Just v ->
+           case A.uncons <<< A.mapMaybe (M.lookup k) $ testMaps' of
+             Nothing -> false
+             Just { head, tail } -> v == foldl (-) head tail
+         Nothing -> A.all (not <<< M.member k) testMaps'
 
   log "size"
   quickCheck $ \xs ->
