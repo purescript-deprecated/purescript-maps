@@ -5,10 +5,11 @@
     "Phil Freeman <paf31@cantab.net>",
     "John A. De Goes <john@degoes.net>"
   ],
+  "keywords": ["pursuit-deprecated"],
   "description": "Purely functional maps implemented in PureScript",
   "repository": {
     "type": "git",
-    "url": "git://github.com/purescript/purescript-maps.git"
+    "url": "https://github.com/purescript/purescript-maps.git"
   },
   "license": "MIT",
   "ignore": [
